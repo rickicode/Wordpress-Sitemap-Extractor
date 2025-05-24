@@ -152,16 +152,16 @@ textarea {
     background-color: #fff9fb; /* Very subtle pink background */
 }
 
-.hidden {
-    display: none;
-}
-
 #loadingIndicator {
     display: flex;
     align-items: center;
     gap: 10px;
     margin: 10px 0;
     color: #e91e63; /* Pink color for loading text */
+}
+
+.hidden {
+    display: none !important; /* Added !important to ensure it overrides other display properties */
 }
 
 .spinner {
