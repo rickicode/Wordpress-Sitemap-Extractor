@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress Sitemap URL Extractor</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>WordPress Sitemap URL Extractor</h1>
+        
+        <div class="input-section">
+            <label for="siteUrls">Enter WordPress Site URLs (one per line):</label>
+            <textarea id="siteUrls" placeholder="https://example1.com&#10;https://example2.com&#10;https://example3.com" rows="5"></textarea>
+            
+            <div class="options-row">
+                <div class="limit-container">
+                    <label for="urlLimit">URL Limit per site:</label>
+                    <input type="number" id="urlLimit" min="1" value="5">
+                </div>
+                
+                <div class="checkbox-container">
+                    <input type="checkbox" id="checkValidity">
+                    <label for="checkValidity">Check if URLs are valid (not 404)</label>
+                </div>
+                
+                <button id="extract">Extract URLs</button>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <div id="statusMessage"></div>
+            <div id="loadingIndicator" class="hidden">
+                <div class="spinner"></div>
+                <span>Extracting URLs...</span>
+            </div>
+        </div>
+        
+        <div class="progress-container hidden" id="progressContainer">
+            <div class="progress-label">Processing sites: <span id="progressCount">0/0</span></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div class="result-section">
+            <h2>Extracted URLs</h2>
+            <div class="result-actions">
+                <span id="urlCount">0 URLs found</span>
+                <button id="copyUrls" disabled>Copy URLs</button>
+            </div>
+            <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
+            
+            <div class="result-summary hidden" id="resultSummary">
+                <h3>Summary</h3>
+                <div id="summaryContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
