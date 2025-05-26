@@ -385,7 +385,9 @@ app.post('/api/extract', async (req, res) => {
                 }
             } catch (error) {
                 result.failedSites++;
-                result.siteResults[sanitizedUrl || siteUrl] = {
+                // Ensure we have a valid key for siteResults even if sanitizedUrl is not defined
+                const urlKey = typeof sanitizedUrl !== 'undefined' ? sanitizedUrl : sanitizeUrl(siteUrl);
+                result.siteResults[urlKey || siteUrl] = {
                     totalUrls: 0,
                     validUrls: 0,
                     invalidUrls: 0,
@@ -435,7 +437,7 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 1000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Access the application at http://localhost:${PORT}`);
