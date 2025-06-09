@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressFill = document.getElementById('progressFill');
     const resultSummary = document.getElementById('resultSummary');
     const summaryContent = document.getElementById('summaryContent');
+    const failedSitesSection = document.getElementById('failedSitesSection');
+    const failedSitesContainer = document.getElementById('failedSitesContainer');
 
     // Event Listeners
     extractButton.addEventListener('click', startExtraction);
@@ -58,13 +60,28 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const result = await response.json();
             
+            // Display failed sites prominently
+            displayFailedSites(result);
+            
             if (result.allUrls && result.allUrls.length > 0) {
                 displayUrls(result.allUrls);
                 displaySummary(result);
-                showStatus(`Successfully extracted ${result.allUrls.length} URLs from ${siteUrls.length} sites!`, 'success');
+                
+                // Create more detailed status message
+                let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
+                if (result.failedSites > 0) {
+                    statusMsg += ` from ${result.successfulSites} sites (${result.failedSites} sites failed)`;
+                } else {
+                    statusMsg += ` from ${result.successfulSites} sites`;
+                }
+                showStatus(statusMsg, 'success');
                 copyButton.disabled = false;
             } else {
-                showStatus('No URLs found. Please check if these are WordPress sites with sitemaps.', 'error');
+                if (result.failedSites === result.totalSites) {
+                    showStatus('All sites failed to extract URLs. Please check the failed sites section below for details.', 'error');
+                } else {
+                    showStatus('No URLs found. Please check if these are WordPress sites with sitemaps.', 'error');
+                }
             }
         } catch (error) {
             showStatus(`Error: ${error.message}`, 'error');
@@ -84,6 +101,67 @@ document.addEventListener('DOMContentLoaded', () => {
             .filter(url => url); // Filter out empty lines
     }
     
+    // Display failed sites prominently
+    function displayFailedSites(result) {
+        const failedSites = [];
+        
+        // Collect all failed sites with their errors
+        for (const [site, details] of Object.entries(result.siteResults)) {
+            if (details.error) {
+                failedSites.push({
+                    url: site,
+                    error: details.error
+                });
+            }
+        }
+        
+        if (failedSites.length > 0) {
+            failedSitesContainer.innerHTML = '';
+            
+            failedSites.forEach(failedSite => {
+                const failedItem = document.createElement('div');
+                failedItem.className = 'failed-site-item';
+                
+                const suggestions = getSuggestions(failedSite.error);
+                
+                failedItem.innerHTML = `
+                    <div class="failed-site-url">${failedSite.url}</div>
+                    <div class="failed-site-error"><strong>Error:</strong> ${failedSite.error}</div>
+                    <div class="failed-site-suggestions">
+                        <strong>💡 Suggestions:</strong> ${suggestions}
+                    </div>
+                `;
+                
+                failedSitesContainer.appendChild(failedItem);
+            });
+            
+            failedSitesSection.classList.remove('hidden');
+        } else {
+            failedSitesSection.classList.add('hidden');
+        }
+    }
+    
+    // Get suggestions based on error type
+    function getSuggestions(error) {
+        const errorLower = error.toLowerCase();
+        
+        if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
+            return 'The site may be slow to respond. Try again later or check if the site is accessible.';
+        } else if (errorLower.includes('404') || errorLower.includes('not found')) {
+            return 'The sitemap was not found. Verify this is a WordPress site with XML sitemaps enabled.';
+        } else if (errorLower.includes('network') || errorLower.includes('enotfound') || errorLower.includes('dns')) {
+            return 'Cannot reach the website. Check the URL spelling and ensure the site is online.';
+        } else if (errorLower.includes('ssl') || errorLower.includes('certificate')) {
+            return 'SSL/Certificate issue. Try using http:// instead of https:// or contact site administrator.';
+        } else if (errorLower.includes('parse') || errorLower.includes('xml')) {
+            return 'Invalid XML format in sitemap. The sitemap may be corrupted or not properly formatted.';
+        } else if (errorLower.includes('invalid url')) {
+            return 'Please check the URL format. Ensure it includes the domain (e.g., example.com or https://example.com).';
+        } else {
+            return 'Please verify the URL is correct and the site has WordPress XML sitemaps enabled.';
+        }
+    }
+    
     // Display summary of the results
     function displaySummary(result) {
         let summaryHTML = `
@@ -100,20 +178,27 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
         
-        // Add per-site breakdown
-        summaryHTML += `<h4>Site Details:</h4><ul>`;
+        // Add per-site breakdown with better styling
+        summaryHTML += `<h4>Site Details:</h4>`;
         for (const [site, details] of Object.entries(result.siteResults)) {
             if (details.error) {
-                summaryHTML += `<li>${site}: Error - ${details.error}</li>`;
+                summaryHTML += `
+                    <div class="site-result-item site-result-error">
+                        <div class="site-result-url">❌ ${site}</div>
+                        <div class="site-result-details">Error: ${details.error}</div>
+                    </div>
+                `;
             } else {
-                summaryHTML += `<li>${site}: Found ${details.totalUrls} URLs`;
+                summaryHTML += `
+                    <div class="site-result-item site-result-success">
+                        <div class="site-result-url">✅ ${site}</div>
+                        <div class="site-result-details">Found ${details.totalUrls} URLs`;
                 if (checkValidityCheckbox.checked) {
                     summaryHTML += ` (${details.validUrls} valid, ${details.invalidUrls} invalid)`;
                 }
-                summaryHTML += `</li>`;
+                summaryHTML += `</div></div>`;
             }
         }
-        summaryHTML += `</ul>`;
         
         summaryContent.innerHTML = summaryHTML;
         resultSummary.classList.remove('hidden');
@@ -164,6 +249,8 @@ document.addEventListener('DOMContentLoaded', () => {
         urlCountDisplay.textContent = '0 URLs found';
         copyButton.disabled = true;
         resultSummary.classList.add('hidden');
+        failedSitesSection.classList.add('hidden');
+        failedSitesContainer.innerHTML = '';
     }
     
     function displayUrls(urls) {

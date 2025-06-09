@@ -236,3 +236,107 @@ textarea {
 #summaryContent p {
     margin: 5px 0;
 }
+
+/* Failed Sites Section Styles */
+.failed-sites-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #ffebee;
+    border-radius: 8px;
+    border-left: 5px solid #e53935;
+}
+
+.failed-heading {
+    color: #c62828;
+    margin-bottom: 15px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.failed-sites-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.failed-site-item {
+    background-color: #fff;
+    border: 1px solid #ffcdd2;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.failed-site-url {
+    font-weight: 600;
+    color: #d32f2f;
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.failed-site-error {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.failed-site-suggestions {
+    font-size: 13px;
+    color: #757575;
+    padding: 8px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    border-left: 3px solid #ff9800;
+}
+
+.failed-site-suggestions strong {
+    color: #e65100;
+}
+
+/* Success Section Enhancement */
+.result-section h2 {
+    margin-bottom: 15px;
+    color: #2e7d32;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Site Results in Summary */
+.site-result-item {
+    margin: 8px 0;
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+}
+
+.site-result-success {
+    background-color: #e8f5e8;
+    border-left-color: #4caf50;
+}
+
+.site-result-error {
+    background-color: #ffebee;
+    border-left-color: #f44336;
+}
+
+.site-result-url {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.site-result-success .site-result-url {
+    color: #2e7d32;
+}
+
+.site-result-error .site-result-url {
+    color: #c62828;
+}
+
+.site-result-details {
+    font-size: 13px;
+    color: #666;
+}
