@@ -48,26 +48,73 @@
             </div>
         </div>
         
-        <div class="result-section">
-            <!-- Failed Sites Section -->
-            <div class="failed-sites-section hidden" id="failedSitesSection">
-                <h2 class="failed-heading">⚠️ Failed Extractions</h2>
-                <div class="failed-sites-container" id="failedSitesContainer">
-                    <!-- Failed sites will be populated here -->
+        <!-- Results Overview Section -->
+        <div class="results-overview hidden" id="resultsOverview">
+            <div class="overview-cards">
+                <div class="overview-card success-card">
+                    <div class="card-icon">✅</div>
+                    <div class="card-content">
+                        <div class="card-title">Successful Sites</div>
+                        <div class="card-value" id="successCount">0</div>
+                    </div>
+                </div>
+                <div class="overview-card failed-card">
+                    <div class="card-icon">❌</div>
+                    <div class="card-content">
+                        <div class="card-title">Failed Sites</div>
+                        <div class="card-value" id="failedCount">0</div>
+                    </div>
+                </div>
+                <div class="overview-card urls-card">
+                    <div class="card-icon">🔗</div>
+                    <div class="card-content">
+                        <div class="card-title">Total URLs</div>
+                        <div class="card-value" id="totalUrlsCount">0</div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Extracted URLs Section -->
-            <h2>✅ Extracted URLs</h2>
-            <div class="result-actions">
-                <span id="urlCount">0 URLs found</span>
-                <button id="copyUrls" disabled>Copy URLs</button>
+        </div>
+
+        <!-- Sites Status Section -->
+        <div class="sites-status-section hidden" id="sitesStatusSection">
+            <div class="status-tabs">
+                <button class="status-tab active" id="allSitesTab" onclick="showStatusTab('all')">
+                    📊 All Sites
+                </button>
+                <button class="status-tab" id="successfulSitesTab" onclick="showStatusTab('successful')">
+                    ✅ Successful
+                </button>
+                <button class="status-tab" id="failedSitesTab" onclick="showStatusTab('failed')">
+                    ❌ Failed
+                </button>
             </div>
-            <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
             
-            <div class="result-summary hidden" id="resultSummary">
-                <h3>📊 Summary</h3>
-                <div id="summaryContent"></div>
+            <div class="status-content">
+                <div id="allSitesContent" class="status-tab-content active">
+                    <div id="allSitesContainer"></div>
+                </div>
+                <div id="successfulSitesContent" class="status-tab-content">
+                    <div id="successfulSitesContainer"></div>
+                </div>
+                <div id="failedSitesContent" class="status-tab-content">
+                    <div id="failedSitesContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <!-- Extracted URLs Section -->
+            <div class="urls-section hidden" id="urlsSection">
+                <div class="section-header">
+                    <h2>🔗 Extracted URLs</h2>
+                    <div class="result-actions">
+                        <span id="urlCount" class="url-count-badge">0 URLs found</span>
+                        <button id="copyUrls" disabled class="copy-button">📋 Copy URLs</button>
+                    </div>
+                </div>
+                <div class="urls-container">
+                    <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
+                </div>
             </div>
         </div>
     </div>

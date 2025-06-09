@@ -12,9 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressContainer = document.getElementById('progressContainer');
     const progressCount = document.getElementById('progressCount');
     const progressFill = document.getElementById('progressFill');
-    const resultSummary = document.getElementById('resultSummary');
-    const summaryContent = document.getElementById('summaryContent');
-    const failedSitesSection = document.getElementById('failedSitesSection');
+    const resultsOverview = document.getElementById('resultsOverview');
+    const sitesStatusSection = document.getElementById('sitesStatusSection');
+    const urlsSection = document.getElementById('urlsSection');
+    const successCount = document.getElementById('successCount');
+    const failedCount = document.getElementById('failedCount');
+    const totalUrlsCount = document.getElementById('totalUrlsCount');
+    const allSitesContainer = document.getElementById('allSitesContainer');
+    const successfulSitesContainer = document.getElementById('successfulSitesContainer');
     const failedSitesContainer = document.getElementById('failedSitesContainer');
 
     // Event Listeners
@@ -60,12 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const result = await response.json();
             
-            // Display failed sites prominently
-            displayFailedSites(result);
+            // Display overview cards
+            displayOverview(result);
+            
+            // Display sites status
+            displaySitesStatus(result);
             
             if (result.allUrls && result.allUrls.length > 0) {
                 displayUrls(result.allUrls);
-                displaySummary(result);
                 
                 // Create more detailed status message
                 let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
@@ -78,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 copyButton.disabled = false;
             } else {
                 if (result.failedSites === result.totalSites) {
-                    showStatus('All sites failed to extract URLs. Please check the failed sites section below for details.', 'error');
+                    showStatus('All sites failed to extract URLs. Please check the sites status below for details.', 'error');
                 } else {
                     showStatus('No URLs found. Please check if these are WordPress sites with sitemaps.', 'error');
                 }
@@ -101,44 +108,119 @@ document.addEventListener('DOMContentLoaded', () => {
             .filter(url => url); // Filter out empty lines
     }
     
-    // Display failed sites prominently
-    function displayFailedSites(result) {
+    // Display overview cards
+    function displayOverview(result) {
+        successCount.textContent = result.successfulSites || 0;
+        failedCount.textContent = result.failedSites || 0;
+        totalUrlsCount.textContent = result.totalUrls || 0;
+        resultsOverview.classList.remove('hidden');
+    }
+    
+    // Display sites status with tabs
+    function displaySitesStatus(result) {
+        const allSites = [];
+        const successfulSites = [];
         const failedSites = [];
         
-        // Collect all failed sites with their errors
+        // Organize sites by status
         for (const [site, details] of Object.entries(result.siteResults)) {
+            const siteData = {
+                url: site,
+                ...details
+            };
+            
+            allSites.push(siteData);
+            
             if (details.error) {
-                failedSites.push({
-                    url: site,
-                    error: details.error
-                });
+                failedSites.push(siteData);
+            } else {
+                successfulSites.push(siteData);
             }
         }
         
-        if (failedSites.length > 0) {
-            failedSitesContainer.innerHTML = '';
-            
-            failedSites.forEach(failedSite => {
-                const failedItem = document.createElement('div');
-                failedItem.className = 'failed-site-item';
-                
-                const suggestions = getSuggestions(failedSite.error);
-                
-                failedItem.innerHTML = `
-                    <div class="failed-site-url">${failedSite.url}</div>
-                    <div class="failed-site-error"><strong>Error:</strong> ${failedSite.error}</div>
-                    <div class="failed-site-suggestions">
-                        <strong>💡 Suggestions:</strong> ${suggestions}
-                    </div>
-                `;
-                
-                failedSitesContainer.appendChild(failedItem);
+        // Populate all sites tab
+        allSitesContainer.innerHTML = '';
+        allSites.forEach(site => {
+            allSitesContainer.appendChild(createSiteItem(site));
+        });
+        
+        // Populate successful sites tab
+        successfulSitesContainer.innerHTML = '';
+        if (successfulSites.length > 0) {
+            successfulSites.forEach(site => {
+                successfulSitesContainer.appendChild(createSiteItem(site));
             });
-            
-            failedSitesSection.classList.remove('hidden');
         } else {
-            failedSitesSection.classList.add('hidden');
+            successfulSitesContainer.innerHTML = '<div class="no-sites-message">🎉 No successful extractions yet</div>';
         }
+        
+        // Populate failed sites tab
+        failedSitesContainer.innerHTML = '';
+        if (failedSites.length > 0) {
+            failedSites.forEach(site => {
+                failedSitesContainer.appendChild(createSiteItem(site));
+            });
+        } else {
+            failedSitesContainer.innerHTML = '<div class="no-sites-message">✅ No failed extractions</div>';
+        }
+        
+        sitesStatusSection.classList.remove('hidden');
+    }
+    
+    // Create a site item element
+    function createSiteItem(site) {
+        const siteItem = document.createElement('div');
+        siteItem.className = 'site-item';
+        
+        const isSuccess = !site.error;
+        const statusBadge = isSuccess ?
+            '<span class="site-status-badge badge-success">Success</span>' :
+            '<span class="site-status-badge badge-failed">Failed</span>';
+        
+        let detailsHTML = '';
+        let errorHTML = '';
+        
+        if (isSuccess) {
+            detailsHTML = `
+                <div class="site-details">
+                    <div class="detail-item">
+                        <span class="detail-icon">📄</span>
+                        <span>Total URLs: ${site.totalUrls}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">✅</span>
+                        <span>Valid: ${site.validUrls}</span>
+                    </div>
+                    ${site.invalidUrls > 0 ? `
+                    <div class="detail-item">
+                        <span class="detail-icon">❌</span>
+                        <span>Invalid: ${site.invalidUrls}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        } else {
+            errorHTML = `
+                <div class="site-error">
+                    <strong>Error:</strong> ${site.error}
+                </div>
+                <div class="site-suggestions">
+                    <strong>💡 Suggestions:</strong> ${getSuggestions(site.error)}
+                </div>
+            `;
+        }
+        
+        siteItem.innerHTML = `
+            <div class="site-item-header">
+                <div class="site-url">
+                    ${isSuccess ? '✅' : '❌'} ${site.url}
+                </div>
+                ${statusBadge}
+            </div>
+            ${detailsHTML}
+            ${errorHTML}
+        `;
+        
+        return siteItem;
     }
     
     // Get suggestions based on error type
@@ -162,46 +244,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Display summary of the results
-    function displaySummary(result) {
-        let summaryHTML = `
-            <p><strong>Sites processed:</strong> ${result.processedSites} of ${result.totalSites}</p>
-            <p><strong>Successful sites:</strong> ${result.successfulSites}</p>
-            <p><strong>Failed sites:</strong> ${result.failedSites}</p>
-            <p><strong>Total URLs found:</strong> ${result.totalUrls}</p>
-        `;
+    // Tab switching function
+    window.showStatusTab = function(tabName) {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.status-tab-content').forEach(content => content.classList.remove('active'));
         
-        if (checkValidityCheckbox.checked) {
-            summaryHTML += `
-                <p><strong>Valid URLs:</strong> ${result.validUrls}</p>
-                <p><strong>Invalid URLs:</strong> ${result.invalidUrls}</p>
-            `;
-        }
-        
-        // Add per-site breakdown with better styling
-        summaryHTML += `<h4>Site Details:</h4>`;
-        for (const [site, details] of Object.entries(result.siteResults)) {
-            if (details.error) {
-                summaryHTML += `
-                    <div class="site-result-item site-result-error">
-                        <div class="site-result-url">❌ ${site}</div>
-                        <div class="site-result-details">Error: ${details.error}</div>
-                    </div>
-                `;
-            } else {
-                summaryHTML += `
-                    <div class="site-result-item site-result-success">
-                        <div class="site-result-url">✅ ${site}</div>
-                        <div class="site-result-details">Found ${details.totalUrls} URLs`;
-                if (checkValidityCheckbox.checked) {
-                    summaryHTML += ` (${details.validUrls} valid, ${details.invalidUrls} invalid)`;
-                }
-                summaryHTML += `</div></div>`;
-            }
-        }
-        
-        summaryContent.innerHTML = summaryHTML;
-        resultSummary.classList.remove('hidden');
+        // Add active class to selected tab and content
+        document.getElementById(`${tabName}SitesTab`).classList.add('active');
+        document.getElementById(`${tabName}SitesContent`).classList.add('active');
     }
     
     // Show progress bar
@@ -248,14 +299,26 @@ document.addEventListener('DOMContentLoaded', () => {
         extractedUrlsTextarea.value = '';
         urlCountDisplay.textContent = '0 URLs found';
         copyButton.disabled = true;
-        resultSummary.classList.add('hidden');
-        failedSitesSection.classList.add('hidden');
+        resultsOverview.classList.add('hidden');
+        sitesStatusSection.classList.add('hidden');
+        urlsSection.classList.add('hidden');
+        
+        // Clear containers
+        allSitesContainer.innerHTML = '';
+        successfulSitesContainer.innerHTML = '';
         failedSitesContainer.innerHTML = '';
+        
+        // Reset tab state
+        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.status-tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById('allSitesTab').classList.add('active');
+        document.getElementById('allSitesContent').classList.add('active');
     }
     
     function displayUrls(urls) {
         extractedUrlsTextarea.value = urls.join('\n');
         urlCountDisplay.textContent = `${urls.length} URLs found`;
+        urlsSection.classList.remove('hidden');
     }
     
     function copyUrls() {
