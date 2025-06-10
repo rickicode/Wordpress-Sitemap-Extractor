@@ -39,10 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         resetUI();
         showLoading(true);
-        showStatus('Starting URL extraction...', 'normal');
+        showStatus('Starting smart extraction (feeds first, then sitemaps)...', 'normal');
         
         try {
-            // Prepare the request payload
+            // Smart extraction: feeds first, then sitemaps
             const payload = {
                 sites: siteUrls,
                 limit: urlLimit,
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.failedSites === result.totalSites) {
                     showStatus('All sites failed to extract URLs. Please check the sites status below for details.', 'error');
                 } else {
-                    showStatus('No URLs found. Please check if these are WordPress sites with sitemaps.', 'error');
+                    showStatus('No URLs found. Please check if these are WordPress sites with feeds or sitemaps.', 'error');
                 }
             }
         } catch (error) {
@@ -113,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
         successCount.textContent = result.successfulSites || 0;
         failedCount.textContent = result.failedSites || 0;
         totalUrlsCount.textContent = result.totalUrls || 0;
+        
+        // Reset the card title for URLs
+        document.querySelector('.urls-card .card-title').textContent = 'Total URLs';
+        
         resultsOverview.classList.remove('hidden');
     }
     
@@ -179,10 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let detailsHTML = '';
         let errorHTML = '';
+        let sourceHTML = '';
         
         if (isSuccess) {
+            // Show source information
+            const sourceIcon = site.source === 'feed' ? '📡' : '🗺️';
+            const sourceName = site.source === 'feed' ? 'RSS/Atom Feed' : 'XML Sitemap';
+            sourceHTML = `
+                <div class="detail-item source-info">
+                    <span class="detail-icon">${sourceIcon}</span>
+                    <span>Source: ${sourceName}</span>
+                </div>
+            `;
+            
             detailsHTML = `
                 <div class="site-details">
+                    ${sourceHTML}
                     <div class="detail-item">
                         <span class="detail-icon">📄</span>
                         <span>Total URLs: ${site.totalUrls}</span>
@@ -230,17 +246,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
             return 'The site may be slow to respond. Try again later or check if the site is accessible.';
         } else if (errorLower.includes('404') || errorLower.includes('not found')) {
-            return 'The sitemap was not found. Verify this is a WordPress site with XML sitemaps enabled.';
+            return 'No feeds or sitemaps were found. Verify this is a WordPress site with RSS/Atom feeds or XML sitemaps enabled.';
         } else if (errorLower.includes('network') || errorLower.includes('enotfound') || errorLower.includes('dns')) {
             return 'Cannot reach the website. Check the URL spelling and ensure the site is online.';
         } else if (errorLower.includes('ssl') || errorLower.includes('certificate')) {
             return 'SSL/Certificate issue. Try using http:// instead of https:// or contact site administrator.';
         } else if (errorLower.includes('parse') || errorLower.includes('xml')) {
-            return 'Invalid XML format in sitemap. The sitemap may be corrupted or not properly formatted.';
+            return 'Invalid XML format. The feed or sitemap may be corrupted or not properly formatted.';
         } else if (errorLower.includes('invalid url')) {
             return 'Please check the URL format. Ensure it includes the domain (e.g., example.com or https://example.com).';
+        } else if (errorLower.includes('no feeds found') || errorLower.includes('no urls found')) {
+            return 'No content sources were detected. Check if the site has RSS/Atom feeds or XML sitemaps enabled.';
         } else {
-            return 'Please verify the URL is correct and the site has WordPress XML sitemaps enabled.';
+            return 'Please verify the URL is correct and the site has WordPress feeds or sitemaps enabled.';
         }
     }
     

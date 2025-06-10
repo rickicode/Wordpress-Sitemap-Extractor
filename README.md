@@ -4,14 +4,21 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 
 ## Features
 
+- **Dual Extraction Modes**:
+  - **Sitemap Mode**: Extract article URLs from WordPress XML sitemaps
+  - **Feed Mode**: Extract article URLs from RSS/Atom feeds
 - Web interface for inputting multiple WordPress site URLs (one per line)
-- Server-side processing of WordPress sitemaps for better performance and reliability
-- Smart sitemap detection:
+- Server-side processing of WordPress sitemaps and feeds for better performance and reliability
+- **Smart sitemap detection** (Sitemap Mode):
   - First tries `/wp-sitemap-posts-post-1.xml`
   - If that fails, tries alternative locations (`/sitemap.xml`, `/sitemap_index.xml`, `/wp-sitemap.xml`)
   - Parses sitemap indexes to find all post-related sitemaps
-- Option to validate URLs to check if they're accessible (not returning 404)
-- Configurable URL limit per site
+- **Smart feed detection** (Feed Mode):
+  - Tries common WordPress feed paths (`/feed/`, `/rss/`, `/atom.xml`, etc.)
+  - Discovers feed URLs from HTML head tags
+  - Extracts article URLs directly from RSS/Atom feed content
+- Option to validate URLs to check if they're accessible (not returning 404) - Sitemap Mode only
+- Configurable URL limit per site - Sitemap Mode only
 - Copy to clipboard functionality for extracted URLs
 - Detailed summary of extraction results
 - Cross-origin request support through proper CORS configuration
@@ -48,8 +55,12 @@ http://localhost:3000
 ### Using the Web Interface
 
 1. Enter multiple WordPress site URLs in the textarea, one per line
-2. Set the URL limit per site (default: 5)
-3. Optionally enable URL validation to check for 404s
+2. Choose extraction type:
+   - **📄 Extract Article URLs from Sitemaps**: Extract from WordPress XML sitemaps (traditional method)
+   - **📡 Extract RSS/Atom Feed URLs**: Extract article URLs directly from RSS/Atom feeds
+3. For Sitemap Mode only:
+   - Set the URL limit per site (default: 5)
+   - Optionally enable URL validation to check for 404s
 4. Click "Extract URLs"
 5. View the extracted URLs and summary
 6. Use the "Copy URLs" button to copy all URLs to clipboard
@@ -100,6 +111,59 @@ Response:
   }
 }
 ```
+
+#### Extract Article URLs from RSS/Atom Feeds
+
+```
+POST /feed
+```
+
+Request body:
+```json
+{
+  "sites": ["https://example1.com", "https://example2.org"]
+}
+```
+
+Response:
+```json
+{
+  "totalSites": 2,
+  "processedSites": 2,
+  "successfulSites": 2,
+  "failedSites": 0,
+  "totalUrls": 20,
+  "allUrls": ["https://example1.com/post1", "https://example1.com/post2", "https://example2.org/article1", ...],
+  "siteResults": {
+    "https://example1.com": {
+      "totalUrls": 10,
+      "validUrls": 10,
+      "invalidUrls": 0,
+      "urls": ["https://example1.com/post1", "https://example1.com/post2", ...]
+    },
+    "https://example2.org": {
+      "totalUrls": 10,
+      "validUrls": 10,
+      "invalidUrls": 0,
+      "urls": ["https://example2.org/article1", "https://example2.org/article2", ...]
+    }
+  }
+}
+```
+
+#### Extract Feed URLs (GET method)
+
+```
+GET /feed?site=https://example.com
+```
+
+or for multiple sites:
+
+```
+GET /feed?sites=https://example1.com,https://example2.org
+```
+
+Response format is the same as POST `/feed`.
 
 #### Check URL Validity
 
