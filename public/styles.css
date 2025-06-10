@@ -179,6 +179,10 @@ button:disabled {
     color: #d50000; /* Red color for errors */
 }
 
+.result-section {
+    margin-bottom: 30px;
+}
+
 .result-section h2 {
     margin-bottom: 15px;
     color: #d81b60; /* Pink color for heading */
@@ -631,4 +635,41 @@ textarea {
         flex-direction: column;
         text-align: center;
     }
+}
+
+/* Button group styling */
+.button-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.clear-button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.clear-button:hover {
+    background-color: #5a6268;
+}
+
+.clear-button:active {
+    background-color: #495057;
+}
+
+/* Auto-save indicator */
+.auto-save-info {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 5px;
+    font-style: italic;
 }

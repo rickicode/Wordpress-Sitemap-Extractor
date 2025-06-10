@@ -22,9 +22,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const successfulSitesContainer = document.getElementById('successfulSitesContainer');
     const failedSitesContainer = document.getElementById('failedSitesContainer');
 
+    // LocalStorage keys
+    const STORAGE_KEYS = {
+        SITE_URLS: 'xmlExtractor_siteUrls',
+        URL_LIMIT: 'xmlExtractor_urlLimit',
+        CHECK_VALIDITY: 'xmlExtractor_checkValidity'
+    };
+
+    // Load saved data on page load
+    loadSavedData();
+
     // Event Listeners
     extractButton.addEventListener('click', startExtraction);
     copyButton.addEventListener('click', copyUrls);
+    document.getElementById('clearData').addEventListener('click', clearSavedData);
+    
+    // Auto-save data when user types or changes settings
+    siteUrlsTextarea.addEventListener('input', debounce(saveData, 500));
+    urlLimitInput.addEventListener('change', saveData);
+    checkValidityCheckbox.addEventListener('change', saveData);
 
     // Function to start URL extraction
     async function startExtraction() {
@@ -36,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const urlLimit = parseInt(urlLimitInput.value) || 5;
         const checkValidity = checkValidityCheckbox.checked;
+        
+        // Save data when extract button is pressed
+        saveData();
         
         resetUI();
         showLoading(true);
@@ -350,5 +369,74 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             copyButton.textContent = originalText;
         }, 2000);
+    }
+
+    // LocalStorage functions
+    function saveData() {
+        try {
+            localStorage.setItem(STORAGE_KEYS.SITE_URLS, siteUrlsTextarea.value);
+            localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
+            localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked.toString());
+        } catch (error) {
+            console.warn('Failed to save data to localStorage:', error);
+        }
+    }
+
+    function loadSavedData() {
+        try {
+            // Load site URLs
+            const savedUrls = localStorage.getItem(STORAGE_KEYS.SITE_URLS);
+            if (savedUrls) {
+                siteUrlsTextarea.value = savedUrls;
+            }
+
+            // Load URL limit
+            const savedLimit = localStorage.getItem(STORAGE_KEYS.URL_LIMIT);
+            if (savedLimit) {
+                urlLimitInput.value = savedLimit;
+            }
+
+            // Load check validity setting
+            const savedCheckValidity = localStorage.getItem(STORAGE_KEYS.CHECK_VALIDITY);
+            if (savedCheckValidity !== null) {
+                checkValidityCheckbox.checked = savedCheckValidity === 'true';
+            }
+        } catch (error) {
+            console.warn('Failed to load data from localStorage:', error);
+        }
+    }
+
+    // Clear saved data function
+    function clearSavedData() {
+        if (confirm('Are you sure you want to clear all saved data? This will remove all saved URLs and settings.')) {
+            try {
+                localStorage.removeItem(STORAGE_KEYS.SITE_URLS);
+                localStorage.removeItem(STORAGE_KEYS.URL_LIMIT);
+                localStorage.removeItem(STORAGE_KEYS.CHECK_VALIDITY);
+                
+                // Reset form to defaults
+                siteUrlsTextarea.value = '';
+                urlLimitInput.value = '5';
+                checkValidityCheckbox.checked = false;
+                
+                showStatus('Saved data cleared successfully', 'success');
+            } catch (error) {
+                console.warn('Failed to clear data from localStorage:', error);
+                showStatus('Failed to clear saved data', 'error');
+            }
+        }
+    }
+
+    // Debounce function to limit how often saveData is called
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 });
