@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         SITE_URLS: 'xmlExtractor_siteUrls',
         URL_LIMIT: 'xmlExtractor_urlLimit',
         CHECK_VALIDITY: 'xmlExtractor_checkValidity',
+        AUTO_SAVE_ID: 'xmlExtractor_autoSaveId',
         AUTH_PASSWORD: 'xmlExtractor_authPassword',
         AUTH_SESSION: 'xmlExtractor_authSession'
     };
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Auto-save data when user types or changes settings
     siteUrlsTextarea.addEventListener('input', debounce(saveData, 500));
+    autoSaveId.addEventListener('input', debounce(saveData, 500));
     urlLimitInput.addEventListener('change', saveData);
     checkValidityCheckbox.addEventListener('change', saveData);
 
@@ -546,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(STORAGE_KEYS.SITE_URLS, siteUrlsTextarea.value);
             localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
             localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked.toString());
+            localStorage.setItem(STORAGE_KEYS.AUTO_SAVE_ID, autoSaveId.value);
         } catch (error) {
             console.warn('Failed to save data to localStorage:', error);
         }
@@ -570,6 +573,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedCheckValidity !== null) {
                 checkValidityCheckbox.checked = savedCheckValidity === 'true';
             }
+
+            // Load auto-save ID
+            const savedAutoSaveId = localStorage.getItem(STORAGE_KEYS.AUTO_SAVE_ID);
+            if (savedAutoSaveId) {
+                autoSaveId.value = savedAutoSaveId;
+            }
         } catch (error) {
             console.warn('Failed to load data from localStorage:', error);
         }
@@ -582,11 +591,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.removeItem(STORAGE_KEYS.SITE_URLS);
                 localStorage.removeItem(STORAGE_KEYS.URL_LIMIT);
                 localStorage.removeItem(STORAGE_KEYS.CHECK_VALIDITY);
+                localStorage.removeItem(STORAGE_KEYS.AUTO_SAVE_ID);
                 
                 // Reset form to defaults
                 siteUrlsTextarea.value = '';
                 urlLimitInput.value = '5';
                 checkValidityCheckbox.checked = false;
+                autoSaveId.value = '';
                 
                 showStatus('Saved data cleared successfully', 'success');
             } catch (error) {
