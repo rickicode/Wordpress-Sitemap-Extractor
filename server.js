@@ -968,14 +968,19 @@ app.get('/api/sitemap/:id', requireAuth, async (req, res) => {
     }
 });
 
-// Serve sitemap page
-app.get('/sitemap/:id', async (req, res) => {
+// Serve sitemap page - supports both /sitemap/:id and /sitemap/:id.xml
+app.get('/sitemap/:id(.xml)?', async (req, res) => {
     if (!databaseEnabled) {
         return res.status(503).send('<?xml version="1.0" encoding="UTF-8"?><error>Database not configured</error>');
     }
     
     try {
-        const { id } = req.params;
+        let { id } = req.params;
+        
+        // Remove .xml extension if present (from /sitemap/123.xml)
+        if (id.endsWith('.xml')) {
+            id = id.slice(0, -4);
+        }
         
         const query = 'SELECT * FROM sitemaps WHERE custom_id = $1';
         const result = await pool.query(query, [id]);
@@ -989,7 +994,9 @@ app.get('/sitemap/:id', async (req, res) => {
         // Generate XML sitemap
         const xmlContent = generateXMLSitemap(sitemap.urls);
         
+        // Set appropriate headers to indicate this is a sitemap.xml
         res.set('Content-Type', 'application/xml; charset=utf-8');
+        res.set('X-Sitemap-ID', id);
         res.send(xmlContent);
         
     } catch (error) {
