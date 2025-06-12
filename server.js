@@ -863,7 +863,7 @@ app.post('/api/sitemap/save', requireAuth, async (req, res) => {
         res.json({
             success: true,
             sitemapId: finalCustomId,
-            sitemapUrl: `/sitemap/${finalCustomId}`,
+            sitemapUrl: `/sitemap/${finalCustomId}.xml`,
             totalSites: sites.length,
             successfulSites,
             failedSites,
@@ -921,7 +921,7 @@ app.post('/api/sitemap/save-direct', requireAuth, async (req, res) => {
         res.json({
             success: true,
             sitemapId: customId,
-            sitemapUrl: `/sitemap/${customId}`,
+            sitemapUrl: `/sitemap/${customId}.xml`,
             totalUrls: urls.length,
             saved: result.rows[0]
         });
@@ -968,19 +968,14 @@ app.get('/api/sitemap/:id', requireAuth, async (req, res) => {
     }
 });
 
-// Serve sitemap page - supports both /sitemap/:id and /sitemap/:id.xml
-app.get('/sitemap/:id(.xml)?', async (req, res) => {
+// Serve sitemap page - only accepts .xml extension (e.g., /sitemap/123.xml or /sitemap/139-24.xml)
+app.get('/sitemap/:id([a-zA-Z0-9-]+).xml', async (req, res) => {
     if (!databaseEnabled) {
         return res.status(503).send('<?xml version="1.0" encoding="UTF-8"?><error>Database not configured</error>');
     }
     
     try {
-        let { id } = req.params;
-        
-        // Remove .xml extension if present (from /sitemap/123.xml)
-        if (id.endsWith('.xml')) {
-            id = id.slice(0, -4);
-        }
+        const { id } = req.params;
         
         const query = 'SELECT * FROM sitemaps WHERE custom_id = $1';
         const result = await pool.query(query, [id]);
@@ -1023,7 +1018,7 @@ app.get('/api/sitemaps', requireAuth, async (req, res) => {
                 urlCount: row.url_count || 0,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
-                sitemapUrl: `/sitemap/${row.custom_id}`
+                sitemapUrl: `/sitemap/${row.custom_id}.xml`
             }))
         });
         

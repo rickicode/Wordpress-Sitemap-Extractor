@@ -625,8 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 sitemapId = await getNextAvailableId();
             }
 
-            // Validate ID format (numbers only)
-            if (!/^[0-9]+$/.test(sitemapId)) {
+            // Validate ID format (letters, numbers, and hyphens)
+            if (!/^[a-zA-Z0-9-]+$/.test(sitemapId)) {
                 console.log('Invalid auto-save ID format, skipping auto-save');
                 return;
             }
@@ -650,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
                 
                 // Display auto-save success
-                const fullSitemapUrl = `${window.location.origin}/sitemap/${result.sitemapId}`;
+                const fullSitemapUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
                 autoSavedUrl.value = fullSitemapUrl;
                 autoSavedId.textContent = result.sitemapId;
                 
@@ -658,7 +658,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update auto-save ID for next time if it was auto-generated
                 if (!autoSaveId.value.trim()) {
-                    autoSaveId.value = parseInt(result.sitemapId) + 1;
+                    // Only increment if the generated ID is numeric
+                    if (/^\d+$/.test(result.sitemapId)) {
+                        autoSaveId.value = parseInt(result.sitemapId) + 1;
+                    }
+                    // For non-numeric IDs, leave the field empty for next auto-generation
                 }
                 
                 // Refresh saved sitemaps list
