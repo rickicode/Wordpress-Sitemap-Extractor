@@ -69,6 +69,7 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL !== 'postgresql://local
                     site_url TEXT NOT NULL,
                     urls TEXT[] NOT NULL,
                     source VARCHAR(50) NOT NULL,
+                    page_views INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -76,6 +77,18 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL !== 'postgresql://local
                 CREATE INDEX IF NOT EXISTS idx_custom_id ON sitemaps(custom_id);
                 CREATE INDEX IF NOT EXISTS idx_site_url ON sitemaps(site_url);
             `);
+            
+            // Add page_views column if it doesn't exist (for existing databases)
+            try {
+                await pool.query(`
+                    ALTER TABLE sitemaps
+                    ADD COLUMN IF NOT EXISTS page_views INTEGER DEFAULT 0;
+                `);
+                console.log('✅ Database schema updated with page_views column');
+            } catch (alterError) {
+                console.log('ℹ️ Page views column already exists or could not be added:', alterError.message);
+            }
+            
             console.log('✅ Database tables initialized successfully');
         } catch (error) {
             console.error('❌ Error initializing database:', error);
@@ -840,15 +853,16 @@ app.post('/api/sitemap/save', requireAuth, async (req, res) => {
         // Generate custom ID if not provided
         let finalCustomId = customId || Math.random().toString(36).substr(2, 9);
         
-        // Save to database (replace if exists)
+        // Save to database (replace if exists and reset page views)
         const query = `
-            INSERT INTO sitemaps (custom_id, site_url, urls, source, updated_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            INSERT INTO sitemaps (custom_id, site_url, urls, source, page_views, updated_at)
+            VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP)
             ON CONFLICT (custom_id)
             DO UPDATE SET
                 site_url = EXCLUDED.site_url,
                 urls = EXCLUDED.urls,
                 source = EXCLUDED.source,
+                page_views = 0,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING *;
         `;
@@ -898,15 +912,16 @@ app.post('/api/sitemap/save-direct', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Please provide a custom ID' });
         }
         
-        // Save to database (replace if exists)
+        // Save to database (replace if exists and reset page views)
         const query = `
-            INSERT INTO sitemaps (custom_id, site_url, urls, source, updated_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            INSERT INTO sitemaps (custom_id, site_url, urls, source, page_views, updated_at)
+            VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP)
             ON CONFLICT (custom_id)
             DO UPDATE SET
                 site_url = EXCLUDED.site_url,
                 urls = EXCLUDED.urls,
                 source = EXCLUDED.source,
+                page_views = 0,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING *;
         `;
@@ -986,12 +1001,27 @@ app.get('/sitemap/:id([a-zA-Z0-9-]+).xml', async (req, res) => {
         
         const sitemap = result.rows[0];
         
-        // Generate XML sitemap
-        const xmlContent = generateXMLSitemap(sitemap.urls);
+        // Increment page views count and get updated count
+        let pageViews = sitemap.page_views + 1;
+        try {
+            const updateResult = await pool.query(
+                'UPDATE sitemaps SET page_views = page_views + 1 WHERE custom_id = $1 RETURNING page_views',
+                [id]
+            );
+            pageViews = updateResult.rows[0].page_views;
+        } catch (updateError) {
+            console.error('Error updating page views:', updateError);
+            // Continue serving the sitemap even if page view tracking fails
+            pageViews = sitemap.page_views;
+        }
+        
+        // Generate XML sitemap with page views
+        const xmlContent = generateXMLSitemap(sitemap.urls, pageViews);
         
         // Set appropriate headers to indicate this is a sitemap.xml
         res.set('Content-Type', 'application/xml; charset=utf-8');
         res.set('X-Sitemap-ID', id);
+        res.set('X-Page-Views', pageViews.toString());
         res.send(xmlContent);
         
     } catch (error) {
@@ -1007,7 +1037,7 @@ app.get('/api/sitemaps', requireAuth, async (req, res) => {
     }
     
     try {
-        const query = 'SELECT custom_id, site_url, source, created_at, updated_at, array_length(urls, 1) as url_count FROM sitemaps ORDER BY updated_at DESC';
+        const query = 'SELECT custom_id, site_url, source, created_at, updated_at, array_length(urls, 1) as url_count, page_views FROM sitemaps ORDER BY updated_at DESC';
         const result = await pool.query(query);
         
         res.json({
@@ -1016,6 +1046,7 @@ app.get('/api/sitemaps', requireAuth, async (req, res) => {
                 siteUrl: row.site_url,
                 source: row.source,
                 urlCount: row.url_count || 0,
+                pageViews: row.page_views || 0,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
                 sitemapUrl: `/sitemap/${row.custom_id}.xml`
@@ -1075,16 +1106,19 @@ function shuffleArray(array) {
 }
 
 // Function to generate XML sitemap (WordPress style) with random URL order
-function generateXMLSitemap(urls) {
+function generateXMLSitemap(urls, pageViews = 0) {
     const currentDate = new Date();
     
     // Randomize the order of URLs each time the sitemap is generated
     const shuffledUrls = shuffleArray(urls);
     
-    // Generate XML with XSL stylesheet reference
+    // Generate XML with XSL stylesheet reference and page views data
     const xmlHeader = `<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="${process.env.SITEMAP_XSL_URL || '/wp-sitemap.xsl'}" ?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:pageviews="http://xmlekstraktor.com/pageviews">
+    <pageviews:stats>
+        <pageviews:count>${pageViews}</pageviews:count>
+    </pageviews:stats>`;
     
     const xmlFooter = '</urlset>';
     

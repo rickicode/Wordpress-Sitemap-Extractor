@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:sitemap="http://www.sitemaps.org/schemas/sitemap/0.9">
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:sitemap="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:pageviews="http://xmlekstraktor.com/pageviews">
 <xsl:output method="html" encoding="UTF-8" indent="yes"/>
 <xsl:template match="/">
 <html>
@@ -160,6 +160,9 @@
         <div class="stats">
             <div class="stats-item">
                 Total URLs: <span class="stats-value"><xsl:value-of select="count(sitemap:urlset/sitemap:url)"/></span>
+            </div>
+            <div class="stats-item">
+                Page Views: <span class="stats-value"><xsl:value-of select="sitemap:urlset/pageviews:stats/pageviews:count"/></span>
             </div>
             <div class="stats-item">
                 Generated: <span class="stats-value"><xsl:value-of select="substring(sitemap:urlset/sitemap:url[1]/sitemap:lastmod, 1, 10)"/></span>

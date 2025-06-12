@@ -61,9 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             managementContainer.innerHTML = '<div class="loading-sitemaps">Loading sitemaps...</div>';
             
-            const response = await fetch('/api/sitemaps', {
+            const response = await fetch(`/api/sitemaps?t=${Date.now()}`, {
                 headers: {
-                    'x-auth-password': currentPassword
+                    'x-auth-password': currentPassword,
+                    'Cache-Control': 'no-cache'
                 }
             });
             
@@ -117,6 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="stat-item">
                     <div class="stat-value">${sitemap.urlCount}</div>
                     <div class="stat-label">Total URLs</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${sitemap.pageViews || 0}</div>
+                    <div class="stat-label">Page Views</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${sitemap.source}</div>

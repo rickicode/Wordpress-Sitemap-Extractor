@@ -108,15 +108,22 @@
         }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 15px;
             margin-bottom: 15px;
+            width: 100%;
         }
         .stat-item {
             text-align: center;
             padding: 10px;
             background: #e9ecef;
             border-radius: 6px;
+            min-width: 100px;
+        }
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
         .stat-value {
             font-size: 20px;
