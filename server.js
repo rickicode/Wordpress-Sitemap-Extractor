@@ -1064,9 +1064,22 @@ app.get('/manage', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'manage.html'));
 });
 
-// Function to generate XML sitemap (WordPress style)
+// Helper function to shuffle array (Fisher-Yates shuffle)
+function shuffleArray(array) {
+    const shuffled = [...array]; // Create a copy to avoid modifying original
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+// Function to generate XML sitemap (WordPress style) with random URL order
 function generateXMLSitemap(urls) {
     const currentDate = new Date();
+    
+    // Randomize the order of URLs each time the sitemap is generated
+    const shuffledUrls = shuffleArray(urls);
     
     // Generate XML with XSL stylesheet reference
     const xmlHeader = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1075,7 +1088,7 @@ function generateXMLSitemap(urls) {
     
     const xmlFooter = '</urlset>';
     
-    const urlEntries = urls.map((url, index) => {
+    const urlEntries = shuffledUrls.map((url, index) => {
         // Generate realistic timestamps (spread over recent days)
         const daysAgo = Math.floor(index / 2); // 2 URLs per day
         const hoursOffset = (index % 2) * 12; // Morning/afternoon
