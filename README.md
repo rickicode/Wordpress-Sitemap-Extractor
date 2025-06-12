@@ -7,6 +7,18 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 - **Dual Extraction Modes**:
   - **Sitemap Mode**: Extract article URLs from WordPress XML sitemaps
   - **Feed Mode**: Extract article URLs from RSS/Atom feeds
+- **🗺️ Sitemap Collection Feature**:
+  - Save extracted URLs as organized sitemaps
+  - Custom ID support for easy sitemap management
+  - Auto-replace existing sitemaps with same ID
+  - PostgreSQL database storage (Supabase compatible)
+  - Access saved sitemaps via permalink `/sitemap/123`
+  - Browse and manage all saved sitemaps
+- **🔐 Authentication & Security**:
+  - Password-protected sitemap management
+  - Secure access to saved data via AUTH_PASSWORD
+  - Management interface at `/manage` for data administration
+  - Delete, view, and copy functionality for saved sitemaps
 - Web interface for inputting multiple WordPress site URLs (one per line)
 - Server-side processing of WordPress sitemaps and feeds for better performance and reliability
 - **Smart sitemap detection** (Sitemap Mode):
@@ -27,6 +39,7 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 
 - Node.js 14.x or higher
 - npm (Node Package Manager)
+- PostgreSQL database (Supabase recommended for cloud hosting)
 
 ## Installation
 
@@ -37,6 +50,30 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 ```bash
 npm install
 ```
+
+4. Set up database configuration:
+   - Copy `.env.example` to `.env`
+   - Update `DATABASE_URL` with your Supabase or PostgreSQL connection string
+   - Set `AUTH_PASSWORD` for sitemap management protection
+   - The application will automatically create the required tables on startup
+
+```bash
+cp .env.example .env
+# Edit .env with your database credentials and authentication password
+```
+
+## Authentication
+
+The sitemap collection and management features are protected by password authentication. Set the `AUTH_PASSWORD` environment variable in your `.env` file to enable these features.
+
+### Protected Endpoints
+
+All sitemap-related API endpoints require authentication via the `x-auth-password` header:
+- `POST /api/sitemap/save`
+- `GET /api/sitemap/:id`
+- `GET /api/sitemaps`
+- `DELETE /api/sitemap/:id`
+- `/manage` (management interface)
 
 ## Usage
 
@@ -197,6 +234,159 @@ Response:
     }
   ]
 }
+```
+
+#### Save Sitemap Collection
+
+```
+POST /api/sitemap/save
+```
+
+Headers:
+```
+x-auth-password: your_management_password
+```
+
+Request body:
+```json
+{
+  "sites": ["https://example1.com", "https://example2.org"],
+  "customId": "my-sitemap-123",
+  "limit": 10,
+  "checkValidity": true
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "sitemapId": "my-sitemap-123",
+  "sitemapUrl": "/sitemap/my-sitemap-123",
+  "totalSites": 2,
+  "successfulSites": 2,
+  "failedSites": 0,
+  "totalUrls": 20,
+  "siteResults": {...},
+  "saved": {
+    "id": 1,
+    "custom_id": "my-sitemap-123",
+    "site_url": "https://example1.com, https://example2.org",
+    "urls": ["https://example1.com/post1", ...],
+    "source": "mixed",
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### Get Sitemap by ID
+
+```
+GET /api/sitemap/:id
+```
+
+Response:
+```json
+{
+  "id": "my-sitemap-123",
+  "siteUrl": "https://example1.com, https://example2.org",
+  "urls": ["https://example1.com/post1", "https://example1.com/post2", ...],
+  "source": "mixed",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "totalUrls": 20
+}
+```
+
+#### View XML Sitemap
+
+```
+GET /sitemap/:id
+```
+
+Returns a properly formatted XML sitemap with all URLs for the specified ID.
+
+#### List All Saved Sitemaps
+
+```
+GET /api/sitemaps
+```
+
+Response:
+```json
+{
+  "sitemaps": [
+    {
+      "id": "my-sitemap-123",
+      "siteUrl": "https://example1.com, https://example2.org",
+      "source": "mixed",
+      "urlCount": 20,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "sitemapUrl": "/sitemap/my-sitemap-123"
+    }
+  ]
+}
+```
+
+#### Delete Sitemap by ID
+
+```
+DELETE /api/sitemap/:id
+```
+
+Headers:
+```
+x-auth-password: your_management_password
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Sitemap 'my-sitemap-123' deleted successfully",
+  "deleted": {
+    "id": 1,
+    "custom_id": "my-sitemap-123",
+    "site_url": "https://example1.com, https://example2.org",
+    "urls": ["https://example1.com/post1", ...],
+    "source": "mixed",
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### Management Interface
+
+Access the web-based management interface at:
+```
+GET /manage
+```
+
+This interface provides:
+- Password authentication
+- View all saved sitemaps
+- Delete sitemaps
+- Preview URLs in each sitemap
+- Copy sitemap URLs
+- Statistics for each sitemap
+
+## Database Schema
+
+The application uses PostgreSQL with the following table structure:
+
+```sql
+CREATE TABLE sitemaps (
+    id SERIAL PRIMARY KEY,
+    custom_id VARCHAR(255) UNIQUE,
+    site_url TEXT NOT NULL,
+    urls TEXT[] NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ## Project Structure

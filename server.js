@@ -6,6 +6,33 @@ const xml2js = require('xml2js');
 const cheerio = require('cheerio');
 const cors = require('cors');
 const morgan = require('morgan');
+const { Pool } = require('pg');
+
+// Load environment variables
+require('dotenv').config();
+
+// Auth middleware for protected routes
+function requireAuth(req, res, next) {
+    const authPassword = process.env.AUTH_PASSWORD;
+    
+    if (!authPassword) {
+        return res.status(503).json({
+            error: 'Authentication not configured',
+            message: 'AUTH_PASSWORD environment variable is required'
+        });
+    }
+    
+    const providedPassword = req.headers['x-auth-password'] || req.body.password || req.query.password;
+    
+    if (!providedPassword || providedPassword !== authPassword) {
+        return res.status(401).json({
+            error: 'Authentication required',
+            message: 'Valid password required to access this resource'
+        });
+    }
+    
+    next();
+}
 
 // Create Express app
 const app = express();
@@ -20,6 +47,48 @@ app.use(express.static(path.join(__dirname, 'public'))); // Serve static files f
 const DEFAULT_LIMIT = 5;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 const TIMEOUT_MS = 10000; // 10 seconds
+
+// PostgreSQL Configuration (Supabase)
+let pool = null;
+let databaseEnabled = false;
+
+if (process.env.DATABASE_URL && process.env.DATABASE_URL !== 'postgresql://localhost:5432/test') {
+    pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    databaseEnabled = true;
+    
+    // Initialize database
+    async function initializeDatabase() {
+        try {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS sitemaps (
+                    id SERIAL PRIMARY KEY,
+                    custom_id VARCHAR(255) UNIQUE,
+                    site_url TEXT NOT NULL,
+                    urls TEXT[] NOT NULL,
+                    source VARCHAR(50) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_custom_id ON sitemaps(custom_id);
+                CREATE INDEX IF NOT EXISTS idx_site_url ON sitemaps(site_url);
+            `);
+            console.log('✅ Database tables initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing database:', error);
+            databaseEnabled = false;
+        }
+    }
+    
+    // Initialize database on startup
+    initializeDatabase();
+} else {
+    console.log('⚠️  Database not configured. Sitemap collection features will be disabled.');
+    console.log('   To enable database features, set DATABASE_URL in .env file.');
+}
 
 // Create axios instance with default configuration
 const http = axios.create({
@@ -706,6 +775,330 @@ app.all('/feed', async (req, res) => {
     }
 });
 
+// API endpoint to save sitemap collection
+app.post('/api/sitemap/save', requireAuth, async (req, res) => {
+    if (!databaseEnabled) {
+        return res.status(503).json({
+            error: 'Database not configured',
+            message: 'Sitemap collection requires a database connection. Please configure DATABASE_URL in .env file.'
+        });
+    }
+    
+    try {
+        const { sites, customId, limit = DEFAULT_LIMIT, checkValidity = false } = req.body;
+        
+        if (!sites || !Array.isArray(sites) || sites.length === 0) {
+            return res.status(400).json({ error: 'Please provide an array of WordPress site URLs' });
+        }
+        
+        // Extract URLs from all sites
+        const allUrls = [];
+        const siteResults = {};
+        let successfulSites = 0;
+        let failedSites = 0;
+        
+        for (const siteUrl of sites) {
+            try {
+                const sanitizedUrl = sanitizeUrl(siteUrl);
+                if (!sanitizedUrl) {
+                    throw new Error('Invalid URL format');
+                }
+                
+                const extractionResult = await extractArticleUrls(sanitizedUrl, parseInt(limit));
+                const articleUrls = extractionResult.urls;
+                const source = extractionResult.source;
+                
+                if (articleUrls.length > 0) {
+                    successfulSites++;
+                    allUrls.push(...articleUrls);
+                    
+                    siteResults[sanitizedUrl] = {
+                        totalUrls: articleUrls.length,
+                        urls: articleUrls,
+                        source: source
+                    };
+                } else {
+                    failedSites++;
+                    siteResults[sanitizedUrl] = {
+                        totalUrls: 0,
+                        error: 'No URLs found'
+                    };
+                }
+            } catch (error) {
+                failedSites++;
+                siteResults[sanitizeUrl(siteUrl) || siteUrl] = {
+                    totalUrls: 0,
+                    error: error.message
+                };
+            }
+        }
+        
+        if (allUrls.length === 0) {
+            return res.status(400).json({ error: 'No URLs extracted from any site' });
+        }
+        
+        // Generate custom ID if not provided
+        let finalCustomId = customId || Math.random().toString(36).substr(2, 9);
+        
+        // Save to database (replace if exists)
+        const query = `
+            INSERT INTO sitemaps (custom_id, site_url, urls, source, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (custom_id)
+            DO UPDATE SET
+                site_url = EXCLUDED.site_url,
+                urls = EXCLUDED.urls,
+                source = EXCLUDED.source,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *;
+        `;
+        
+        const result = await pool.query(query, [
+            finalCustomId,
+            sites.join(', '),
+            allUrls,
+            'mixed' // Since we can have multiple sources
+        ]);
+        
+        res.json({
+            success: true,
+            sitemapId: finalCustomId,
+            sitemapUrl: `/sitemap/${finalCustomId}`,
+            totalSites: sites.length,
+            successfulSites,
+            failedSites,
+            totalUrls: allUrls.length,
+            siteResults,
+            saved: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error saving sitemap:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+// API endpoint to save sitemap collection directly from extracted URLs
+app.post('/api/sitemap/save-direct', requireAuth, async (req, res) => {
+    if (!databaseEnabled) {
+        return res.status(503).json({
+            error: 'Database not configured',
+            message: 'Sitemap collection requires a database connection. Please configure DATABASE_URL in .env file.'
+        });
+    }
+    
+    try {
+        const { urls, customId, siteUrl } = req.body;
+        
+        if (!urls || !Array.isArray(urls) || urls.length === 0) {
+            return res.status(400).json({ error: 'Please provide an array of URLs' });
+        }
+        
+        if (!customId) {
+            return res.status(400).json({ error: 'Please provide a custom ID' });
+        }
+        
+        // Save to database (replace if exists)
+        const query = `
+            INSERT INTO sitemaps (custom_id, site_url, urls, source, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (custom_id)
+            DO UPDATE SET
+                site_url = EXCLUDED.site_url,
+                urls = EXCLUDED.urls,
+                source = EXCLUDED.source,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *;
+        `;
+        
+        const result = await pool.query(query, [
+            customId,
+            siteUrl || 'Direct URLs',
+            urls,
+            'direct'
+        ]);
+        
+        res.json({
+            success: true,
+            sitemapId: customId,
+            sitemapUrl: `/sitemap/${customId}`,
+            totalUrls: urls.length,
+            saved: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error saving sitemap directly:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+// API endpoint to get sitemap by ID
+app.get('/api/sitemap/:id', requireAuth, async (req, res) => {
+    if (!databaseEnabled) {
+        return res.status(503).json({
+            error: 'Database not configured',
+            message: 'Sitemap collection requires a database connection.'
+        });
+    }
+    
+    try {
+        const { id } = req.params;
+        
+        const query = 'SELECT * FROM sitemaps WHERE custom_id = $1';
+        const result = await pool.query(query, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Sitemap not found' });
+        }
+        
+        const sitemap = result.rows[0];
+        res.json({
+            id: sitemap.custom_id,
+            siteUrl: sitemap.site_url,
+            urls: sitemap.urls,
+            source: sitemap.source,
+            createdAt: sitemap.created_at,
+            updatedAt: sitemap.updated_at,
+            totalUrls: sitemap.urls.length
+        });
+        
+    } catch (error) {
+        console.error('Error retrieving sitemap:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+// Serve sitemap page
+app.get('/sitemap/:id', async (req, res) => {
+    if (!databaseEnabled) {
+        return res.status(503).send('<?xml version="1.0" encoding="UTF-8"?><error>Database not configured</error>');
+    }
+    
+    try {
+        const { id } = req.params;
+        
+        const query = 'SELECT * FROM sitemaps WHERE custom_id = $1';
+        const result = await pool.query(query, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).send('<?xml version="1.0" encoding="UTF-8"?><error>Sitemap not found</error>');
+        }
+        
+        const sitemap = result.rows[0];
+        
+        // Generate XML sitemap
+        const xmlContent = generateXMLSitemap(sitemap.urls);
+        
+        res.set('Content-Type', 'application/xml; charset=utf-8');
+        res.send(xmlContent);
+        
+    } catch (error) {
+        console.error('Error serving sitemap:', error);
+        res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><error>Error loading sitemap</error>');
+    }
+});
+
+// API endpoint to list all sitemaps
+app.get('/api/sitemaps', requireAuth, async (req, res) => {
+    if (!databaseEnabled) {
+        return res.json({ sitemaps: [] });
+    }
+    
+    try {
+        const query = 'SELECT custom_id, site_url, source, created_at, updated_at, array_length(urls, 1) as url_count FROM sitemaps ORDER BY updated_at DESC';
+        const result = await pool.query(query);
+        
+        res.json({
+            sitemaps: result.rows.map(row => ({
+                id: row.custom_id,
+                siteUrl: row.site_url,
+                source: row.source,
+                urlCount: row.url_count || 0,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                sitemapUrl: `/sitemap/${row.custom_id}`
+            }))
+        });
+        
+    } catch (error) {
+        console.error('Error listing sitemaps:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+// API endpoint to delete sitemap by ID
+app.delete('/api/sitemap/:id', requireAuth, async (req, res) => {
+    if (!databaseEnabled) {
+        return res.status(503).json({
+            error: 'Database not configured',
+            message: 'Sitemap collection requires a database connection.'
+        });
+    }
+    
+    try {
+        const { id } = req.params;
+        
+        const query = 'DELETE FROM sitemaps WHERE custom_id = $1 RETURNING *';
+        const result = await pool.query(query, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Sitemap not found' });
+        }
+        
+        res.json({
+            success: true,
+            message: `Sitemap '${id}' deleted successfully`,
+            deleted: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error deleting sitemap:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+// Serve manage page
+app.get('/manage', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'manage.html'));
+});
+
+// Function to generate XML sitemap (WordPress style)
+function generateXMLSitemap(urls) {
+    const currentDate = new Date();
+    
+    // Generate XML with XSL stylesheet reference
+    const xmlHeader = `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="${process.env.SITEMAP_XSL_URL || '/wp-sitemap.xsl'}" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+    
+    const xmlFooter = '</urlset>';
+    
+    const urlEntries = urls.map((url, index) => {
+        // Generate realistic timestamps (spread over recent days)
+        const daysAgo = Math.floor(index / 2); // 2 URLs per day
+        const hoursOffset = (index % 2) * 12; // Morning/afternoon
+        const urlDate = new Date(currentDate.getTime() - (daysAgo * 24 * 60 * 60 * 1000) + (hoursOffset * 60 * 60 * 1000));
+        const lastmod = urlDate.toISOString();
+        
+        return `<url><loc>${escapeXml(url)}</loc><lastmod>${lastmod}</lastmod></url>`;
+    }).join('');
+    
+    return xmlHeader + urlEntries + xmlFooter;
+}
+
+// Helper function to escape XML characters
+function escapeXml(unsafe) {
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+        }
+    });
+}
+
 // Serve the index.html file for all other routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -717,3 +1110,16 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Access the application at http://localhost:${PORT}`);
 });
+
+// Helper function to escape HTML characters
+function escapeHtml(unsafe) {
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&#x27;';
+            case '"': return '&quot;';
+        }
+    });
+}

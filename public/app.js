@@ -1,4 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Authentication Elements
+    const authOverlay = document.getElementById('authOverlay');
+    const mainApp = document.getElementById('mainApp');
+    const globalAuthPassword = document.getElementById('globalAuthPassword');
+    const globalAuthButton = document.getElementById('globalAuthButton');
+    const globalAuthStatus = document.getElementById('globalAuthStatus');
+    
+    // Navigation Elements
+    const homeNav = document.getElementById('homeNav');
+    const manageNav = document.getElementById('manageNav');
+    const logoutButton = document.getElementById('logoutButton');
+    const homeSection = document.getElementById('homeSection');
+    const managerSection = document.getElementById('managerSection');
+    
     // DOM Elements
     const siteUrlsTextarea = document.getElementById('siteUrls');
     const urlLimitInput = document.getElementById('urlLimit');
@@ -21,26 +35,177 @@ document.addEventListener('DOMContentLoaded', () => {
     const allSitesContainer = document.getElementById('allSitesContainer');
     const successfulSitesContainer = document.getElementById('successfulSitesContainer');
     const failedSitesContainer = document.getElementById('failedSitesContainer');
+    
+    // Auto-save Elements
+    const autoSaveId = document.getElementById('autoSaveId');
+    const autoSaveSection = document.getElementById('autoSaveSection');
+    const autoSavedId = document.getElementById('autoSavedId');
+    const autoSavedUrl = document.getElementById('autoSavedUrl');
+    const copyAutoSavedUrlButton = document.getElementById('copyAutoSavedUrl');
+    const openAutoSavedUrlButton = document.getElementById('openAutoSavedUrl');
+    const savedSitemapsContainer = document.getElementById('savedSitemapsContainer');
+    const refreshSitemapsButton = document.getElementById('refreshSitemaps');
+
+    // Global variables
+    let currentPassword = '';
+    let isAuthenticated = false;
 
     // LocalStorage keys
     const STORAGE_KEYS = {
         SITE_URLS: 'xmlExtractor_siteUrls',
         URL_LIMIT: 'xmlExtractor_urlLimit',
-        CHECK_VALIDITY: 'xmlExtractor_checkValidity'
+        CHECK_VALIDITY: 'xmlExtractor_checkValidity',
+        AUTH_PASSWORD: 'xmlExtractor_authPassword',
+        AUTH_SESSION: 'xmlExtractor_authSession'
     };
 
-    // Load saved data on page load
-    loadSavedData();
+    // Check authentication on page load
+    checkAuthenticationStatus();
 
+    // Authentication Event Listeners
+    globalAuthButton.addEventListener('click', authenticate);
+    globalAuthPassword.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') authenticate();
+    });
+    
+    // Navigation Event Listeners
+    homeNav.addEventListener('click', () => showSection('home'));
+    manageNav.addEventListener('click', () => showSection('manager'));
+    logoutButton.addEventListener('click', logout);
+    
     // Event Listeners
     extractButton.addEventListener('click', startExtraction);
     copyButton.addEventListener('click', copyUrls);
     document.getElementById('clearData').addEventListener('click', clearSavedData);
     
+    // Auto-save Event Listeners
+    copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
+    openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
+    refreshSitemapsButton.addEventListener('click', loadSavedSitemaps);
+    
     // Auto-save data when user types or changes settings
     siteUrlsTextarea.addEventListener('input', debounce(saveData, 500));
     urlLimitInput.addEventListener('change', saveData);
     checkValidityCheckbox.addEventListener('change', saveData);
+
+    // Authentication Functions
+    function checkAuthenticationStatus() {
+        const savedAuth = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+        const savedPassword = localStorage.getItem(STORAGE_KEYS.AUTH_PASSWORD);
+        
+        if (savedAuth && savedPassword) {
+            currentPassword = savedPassword;
+            isAuthenticated = true;
+            showMainApp();
+            loadSavedData();
+            loadSavedSitemaps();
+        } else {
+            showAuthOverlay();
+        }
+    }
+
+    async function authenticate() {
+        const password = globalAuthPassword.value.trim();
+        
+        if (!password) {
+            showAuthStatus('Please enter a password', 'error');
+            return;
+        }
+        
+        globalAuthButton.disabled = true;
+        showAuthStatus('Authenticating...', 'normal');
+        
+        try {
+            // Test authentication with a simple API call
+            const response = await fetch('/api/sitemaps', {
+                headers: {
+                    'x-auth-password': password
+                }
+            });
+            
+            if (response.ok) {
+                currentPassword = password;
+                isAuthenticated = true;
+                
+                // Save authentication to localStorage
+                localStorage.setItem(STORAGE_KEYS.AUTH_PASSWORD, password);
+                localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'authenticated');
+                
+                showAuthStatus('Authentication successful!', 'success');
+                setTimeout(() => {
+                    showMainApp();
+                    loadSavedData();
+                    loadSavedSitemaps();
+                }, 1000);
+            } else {
+                const error = await response.json();
+                showAuthStatus(error.message || 'Authentication failed', 'error');
+            }
+        } catch (error) {
+            showAuthStatus('Network error: ' + error.message, 'error');
+        } finally {
+            globalAuthButton.disabled = false;
+        }
+    }
+
+    function logout() {
+        if (confirm('Are you sure you want to logout?')) {
+            currentPassword = '';
+            isAuthenticated = false;
+            
+            // Clear authentication from localStorage
+            localStorage.removeItem(STORAGE_KEYS.AUTH_PASSWORD);
+            localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+            
+            showAuthOverlay();
+            globalAuthPassword.value = '';
+            showAuthStatus('', 'normal');
+        }
+    }
+
+    function showAuthOverlay() {
+        authOverlay.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+    }
+
+    function showMainApp() {
+        authOverlay.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        showSection('home'); // Show home section by default
+    }
+
+    function showAuthStatus(message, type = 'normal') {
+        globalAuthStatus.textContent = message;
+        globalAuthStatus.className = 'auth-status';
+        
+        if (type === 'error') {
+            globalAuthStatus.classList.add('error');
+        } else if (type === 'success') {
+            globalAuthStatus.classList.add('success');
+        }
+    }
+
+    // Navigation Functions
+    function showSection(sectionName) {
+        // Update navigation buttons
+        document.querySelectorAll('.nav-button:not(.logout)').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Update content sections
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        if (sectionName === 'home') {
+            homeNav.classList.add('active');
+            homeSection.classList.add('active');
+        } else if (sectionName === 'manager') {
+            manageNav.classList.add('active');
+            managerSection.classList.add('active');
+            loadSavedSitemaps(); // Refresh sitemaps when switching to manager
+        }
+    }
 
     // Function to start URL extraction
     async function startExtraction() {
@@ -92,6 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (result.allUrls && result.allUrls.length > 0) {
                 displayUrls(result.allUrls);
+                
+                // Auto-save to sitemap
+                await autoSaveSitemap(result.allUrls, result);
                 
                 // Create more detailed status message
                 let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
@@ -339,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsOverview.classList.add('hidden');
         sitesStatusSection.classList.add('hidden');
         urlsSection.classList.add('hidden');
+        autoSaveSection.classList.add('hidden');
         
         // Clear containers
         allSitesContainer.innerHTML = '';
@@ -439,4 +608,284 @@ document.addEventListener('DOMContentLoaded', () => {
             timeout = setTimeout(later, wait);
         };
     }
+
+    // Auto-save sitemap function
+    async function autoSaveSitemap(urlsArray, extractionResult) {
+        if (!isAuthenticated || !currentPassword) {
+            console.log('No authentication, skipping auto-save');
+            return;
+        }
+
+        try {
+            // Get auto-save ID or generate one starting from 100
+            let sitemapId = autoSaveId.value.trim();
+            
+            if (!sitemapId) {
+                // Generate auto ID starting from 100
+                sitemapId = await getNextAvailableId();
+            }
+
+            // Validate ID format (numbers only)
+            if (!/^[0-9]+$/.test(sitemapId)) {
+                console.log('Invalid auto-save ID format, skipping auto-save');
+                return;
+            }
+
+            const payload = {
+                urls: urlsArray,
+                customId: sitemapId,
+                siteUrl: getSiteUrls().join(', ') || 'Auto-saved URLs'
+            };
+
+            const response = await fetch('/api/sitemap/save-direct', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-password': currentPassword
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                
+                // Display auto-save success
+                const fullSitemapUrl = `${window.location.origin}/sitemap/${result.sitemapId}`;
+                autoSavedUrl.value = fullSitemapUrl;
+                autoSavedId.textContent = result.sitemapId;
+                
+                autoSaveSection.classList.remove('hidden');
+                
+                // Update auto-save ID for next time if it was auto-generated
+                if (!autoSaveId.value.trim()) {
+                    autoSaveId.value = parseInt(result.sitemapId) + 1;
+                }
+                
+                // Refresh saved sitemaps list
+                loadSavedSitemaps();
+                
+                console.log(`Auto-saved sitemap with ID: ${result.sitemapId}`);
+            } else {
+                console.log('Auto-save failed:', await response.text());
+            }
+            
+        } catch (error) {
+            console.log('Auto-save error:', error.message);
+        }
+    }
+
+    // Get next available ID starting from 100
+    async function getNextAvailableId() {
+        try {
+            const response = await fetch('/api/sitemaps', {
+                headers: {
+                    'x-auth-password': currentPassword
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const existingIds = data.sitemaps.map(s => parseInt(s.id)).filter(id => !isNaN(id) && id >= 100);
+                
+                if (existingIds.length === 0) {
+                    return '100';
+                }
+                
+                existingIds.sort((a, b) => a - b);
+                let nextId = 100;
+                
+                for (const id of existingIds) {
+                    if (id === nextId) {
+                        nextId++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                return nextId.toString();
+            }
+        } catch (error) {
+            console.log('Error getting next ID:', error);
+        }
+        
+        return '100'; // Default fallback
+    }
+
+    // Auto-saved URL functions
+    function copyAutoSavedUrl() {
+        autoSavedUrl.select();
+        document.execCommand('copy');
+        
+        const originalText = copyAutoSavedUrlButton.textContent;
+        copyAutoSavedUrlButton.textContent = '✅';
+        
+        setTimeout(() => {
+            copyAutoSavedUrlButton.textContent = originalText;
+        }, 2000);
+    }
+
+    function openAutoSavedUrl() {
+        const url = autoSavedUrl.value;
+        if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    function copySitemapUrl() {
+        sitemapUrl.select();
+        document.execCommand('copy');
+        
+        const originalText = copySitemapUrlButton.innerHTML;
+        copySitemapUrlButton.innerHTML = '<span class="button-icon">✅</span>Copied!';
+        
+        setTimeout(() => {
+            copySitemapUrlButton.innerHTML = originalText;
+        }, 2000);
+    }
+
+    function openSitemapUrl() {
+        const url = sitemapUrl.value;
+        if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    async function loadSavedSitemaps() {
+        if (!isAuthenticated || !currentPassword) {
+            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Authentication required</div>';
+            return;
+        }
+        
+        try {
+            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Loading saved sitemaps...</div>';
+            
+            const response = await fetch('/api/sitemaps', {
+                headers: {
+                    'x-auth-password': currentPassword
+                }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Authentication expired. Please logout and login again.');
+                }
+                throw new Error('Failed to load sitemaps');
+            }
+            
+            const data = await response.json();
+            displaySavedSitemaps(data.sitemaps);
+            
+        } catch (error) {
+            console.error('Error loading saved sitemaps:', error);
+            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Failed to load saved sitemaps: ' + error.message + '</div>';
+        }
+    }
+
+    function displaySavedSitemaps(sitemaps) {
+        if (sitemaps.length === 0) {
+            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">No saved sitemaps found</div>';
+            return;
+        }
+
+        savedSitemapsContainer.innerHTML = '';
+        
+        sitemaps.forEach(sitemap => {
+            const sitemapElement = createSitemapItem(sitemap);
+            savedSitemapsContainer.appendChild(sitemapElement);
+        });
+    }
+
+    function createSitemapItem(sitemap) {
+        const sitemapItem = document.createElement('div');
+        sitemapItem.className = 'sitemap-item';
+        
+        const createdDate = new Date(sitemap.createdAt).toLocaleDateString('id-ID');
+        const updatedDate = new Date(sitemap.updatedAt).toLocaleDateString('id-ID');
+        const fullSitemapUrl = `${window.location.origin}${sitemap.sitemapUrl}`;
+        
+        sitemapItem.innerHTML = `
+            <div class="sitemap-item-header">
+                <div class="sitemap-id">${sitemap.id}</div>
+                <div class="sitemap-date">Updated: ${updatedDate}</div>
+            </div>
+            <div class="sitemap-details">
+                <div class="detail-item">
+                    <span class="detail-icon">🌐</span>
+                    <span>Sites: ${sitemap.siteUrl}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-icon">🔗</span>
+                    <span>URLs: ${sitemap.urlCount}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-icon">📅</span>
+                    <span>Created: ${createdDate}</span>
+                </div>
+            </div>
+            <div class="sitemap-actions-row">
+                <a href="${sitemap.sitemapUrl}" target="_blank" class="view-sitemap-button">
+                    🔍 View Sitemap
+                </a>
+                <button class="copy-sitemap-url" onclick="copySitemapUrlToClipboard('${fullSitemapUrl}')">
+                    📋 Copy URL
+                </button>
+                <button class="danger-button" onclick="deleteSitemapFromMain('${sitemap.id}')">
+                    🗑️ Delete
+                </button>
+            </div>
+        `;
+        
+        return sitemapItem;
+    }
+
+    // Delete sitemap function
+    window.deleteSitemapFromMain = async function(sitemapId) {
+        if (!confirm(`Are you sure you want to delete sitemap '${sitemapId}'? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/sitemap/${sitemapId}`, {
+                method: 'DELETE',
+                headers: {
+                    'x-auth-password': currentPassword
+                }
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                showStatus(`Sitemap '${sitemapId}' deleted successfully!`, 'success');
+                loadSavedSitemaps(); // Refresh the list
+            } else {
+                const error = await response.json();
+                showStatus('Error deleting sitemap: ' + error.message, 'error');
+            }
+        } catch (error) {
+            showStatus('Network error: ' + error.message, 'error');
+        }
+    };
+
+    // Global function for copying sitemap URLs
+    window.copySitemapUrlToClipboard = function(url) {
+        navigator.clipboard.writeText(url).then(() => {
+            // Find the button that was clicked and provide feedback
+            event.target.textContent = 'Copied!';
+            setTimeout(() => {
+                event.target.textContent = '📋 Copy URL';
+            }, 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            event.target.textContent = 'Copied!';
+            setTimeout(() => {
+                event.target.textContent = '📋 Copy URL';
+            }, 2000);
+        });
+    };
 });

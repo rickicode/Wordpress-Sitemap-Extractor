@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitemap Management - WordPress URL Extractor</title>
+    <link rel="icon" type="image/png" href="/diamond.png">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .auth-section {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .auth-form {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .auth-form input {
+            padding: 10px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        .auth-button {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .auth-button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        .management-section {
+            display: none;
+        }
+        .management-section.authenticated {
+            display: block;
+        }
+        .sitemap-management-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.2s ease;
+        }
+        .sitemap-management-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        .sitemap-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .sitemap-id-large {
+            font-weight: 700;
+            color: #6f42c1;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+        }
+        .danger-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .danger-button:hover {
+            background-color: #c82333;
+        }
+        .url-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .url-item {
+            padding: 2px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 6px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #495057;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="/diamond.svg" alt="Diamond Logo" class="logo">
+            <h1>Sitemap Management</h1>
+        </header>
+        
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <h2>🔐 Authentication Required</h2>
+            <p>Enter your password to access sitemap management features</p>
+            <div class="auth-form">
+                <input type="password" id="authPassword" placeholder="Enter management password">
+                <button class="auth-button" id="authButton">Authenticate</button>
+            </div>
+            <div id="authStatus" style="margin-top: 15px;"></div>
+        </div>
+        
+        <!-- Management Section -->
+        <div class="management-section" id="managementSection">
+            <div class="section-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                <h2 style="margin: 0; color: white;">📚 Saved Sitemaps Management</h2>
+                <button id="refreshManagement" class="refresh-button" style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: white; padding: 8px 16px; border-radius: 6px; font-size: 14px;">🔄 Refresh</button>
+            </div>
+            
+            <div class="management-container" id="managementContainer">
+                <div class="loading-sitemaps">Loading sitemaps...</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="/" style="color: #007bff; text-decoration: none; font-weight: 600;">← Back to URL Extractor</a>
+        </div>
+    </div>
+
+    <script src="/manage.js"></script>
+</body>
+</html>

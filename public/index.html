@@ -9,10 +9,37 @@
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <img src="/diamond.svg" alt="Diamond Logo" class="logo">
-            <h1>WordPress Sitemap URL Extractor</h1>
-        </header>
+        <!-- Authentication Section -->
+        <div class="auth-overlay" id="authOverlay">
+            <div class="auth-modal">
+                <div class="auth-header">
+                    <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
+                    <h2>🔐 Authentication Required</h2>
+                    <p>Enter your password to access the XML Extractor</p>
+                </div>
+                <div class="auth-form">
+                    <input type="password" id="globalAuthPassword" placeholder="Enter access password">
+                    <button id="globalAuthButton" class="auth-button">🚀 Access Application</button>
+                </div>
+                <div id="globalAuthStatus" class="auth-status"></div>
+            </div>
+        </div>
+
+        <!-- Main Application -->
+        <div class="main-app hidden" id="mainApp">
+            <header class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <img src="/diamond.svg" alt="Diamond Logo" class="logo">
+                        <h1>WordPress XML Extractor</h1>
+                    </div>
+                    <nav class="header-nav">
+                        <button class="nav-button active" id="homeNav">🏠 Home</button>
+                        <button class="nav-button" id="manageNav">🔧 Manager</button>
+                        <button class="nav-button logout" id="logoutButton">🚪 Logout</button>
+                    </nav>
+                </div>
+            </header>
         
         <div class="input-section">
             <label for="siteUrls">Enter WordPress Site URLs (one per line):</label>
@@ -23,20 +50,24 @@
                 <p><strong>🔍 Smart Extraction:</strong> The app will automatically try RSS/Atom feeds first, then fallback to sitemaps if no feed is available.</p>
             </div>
             
-            <div class="options-row">
-                <div class="limit-container">
-                    <label for="urlLimit">URL Limit per site:</label>
-                    <input type="number" id="urlLimit" min="1" value="5">
+            <div class="extraction-controls">
+                <div class="input-row">
+                    <input type="number" id="urlLimit" min="1" max="100" value="5" class="compact-input" placeholder="🔢 URL limit per site (default: 5)">
+                    <input type="number" id="autoSaveId" placeholder="💾 Auto-save ID (leave empty for auto)" min="1" max="999999" class="compact-input">
+                    <label class="compact-checkbox">
+                        <input type="checkbox" id="checkValidity">
+                        <span class="checkmark">✓</span>
+                        <span class="checkbox-text">Validate URLs</span>
+                    </label>
                 </div>
                 
-                <div class="checkbox-container">
-                    <input type="checkbox" id="checkValidity">
-                    <label for="checkValidity">Check if URLs are valid (not 404)</label>
-                </div>
-                
-                <div class="button-group">
-                    <button id="extract">Extract URLs</button>
-                    <button id="clearData" class="clear-button" title="Clear saved data">🗑️ Clear Data</button>
+                <div class="action-row">
+                    <button id="extract" class="extract-btn">
+                        🚀 Extract URLs
+                    </button>
+                    <button id="clearData" class="clear-btn" title="Clear saved data">
+                        🗑️
+                    </button>
                 </div>
             </div>
         </div>
@@ -83,51 +114,95 @@
             </div>
         </div>
 
+            <!-- Home Section -->
+            <div class="content-section active" id="homeSection">
+                <!-- Auto-save Status Section -->
+                <div class="auto-save-section hidden" id="autoSaveSection">
+                    <div class="auto-save-result">
+                        <span class="result-text">✅ Auto-saved to Sitemap ID: <strong id="autoSavedId">-</strong></span>
+                        <div class="result-actions">
+                            <input type="text" id="autoSavedUrl" readonly>
+                            <button id="copyAutoSavedUrl" class="mini-button">📋</button>
+                            <button id="openAutoSavedUrl" class="mini-button">🔗</button>
+                        </div>
+                    </div>
+                </div>
+
         <div class="result-section">
             <!-- Extracted URLs Section -->
             <div class="urls-section hidden" id="urlsSection">
-                <div class="section-header">
-                    <h2>🔗 Extracted URLs</h2>
-                    <div class="result-actions">
-                        <span id="urlCount" class="url-count-badge">0 URLs found</span>
-                        <button id="copyUrls" disabled class="copy-button">📋 Copy URLs</button>
+                <div class="urls-header">
+                    <div class="urls-title">
+                        <span class="title-icon">🔗</span>
+                        <h2>Extracted URLs</h2>
+                        <span id="urlCount" class="count-badge">0 URLs</span>
+                    </div>
+                    <div class="urls-actions">
+                        <button id="copyUrls" disabled class="action-btn copy-btn">
+                            <span class="btn-icon">📋</span>
+                            <span class="btn-text">Copy All</span>
+                        </button>
                     </div>
                 </div>
                 <div class="urls-container">
-                    <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Sites Status Section -->
-        <div class="sites-status-section hidden" id="sitesStatusSection">
-            <div class="status-tabs">
-                <button class="status-tab active" id="allSitesTab" onclick="showStatusTab('all')">
-                    📊 All Sites
-                </button>
-                <button class="status-tab" id="successfulSitesTab" onclick="showStatusTab('successful')">
-                    ✅ Successful
-                </button>
-                <button class="status-tab" id="failedSitesTab" onclick="showStatusTab('failed')">
-                    ❌ Failed
-                </button>
-            </div>
-            
-
-
-            <div class="status-content">
-                <div id="allSitesContent" class="status-tab-content active">
-                    <div id="allSitesContainer"></div>
-                </div>
-                <div id="successfulSitesContent" class="status-tab-content">
-                    <div id="successfulSitesContainer"></div>
-                </div>
-                <div id="failedSitesContent" class="status-tab-content">
-                    <div id="failedSitesContainer"></div>
+                    <div class="urls-wrapper">
+                        <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
+                        <div class="urls-overlay">
+                            <div class="urls-info">
+                                Click "Copy All" to copy URLs to clipboard
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
+                <!-- Sites Status Section -->
+                <div class="sites-status-section hidden" id="sitesStatusSection">
+                    <div class="status-tabs">
+                        <button class="status-tab active" id="allSitesTab" onclick="showStatusTab('all')">
+                            📊 All Sites
+                        </button>
+                        <button class="status-tab" id="successfulSitesTab" onclick="showStatusTab('successful')">
+                            ✅ Successful
+                        </button>
+                        <button class="status-tab" id="failedSitesTab" onclick="showStatusTab('failed')">
+                            ❌ Failed
+                        </button>
+                    </div>
+                    
+                    <div class="status-content">
+                        <div id="allSitesContent" class="status-tab-content active">
+                            <div id="allSitesContainer"></div>
+                        </div>
+                        <div id="successfulSitesContent" class="status-tab-content">
+                            <div id="successfulSitesContainer"></div>
+                        </div>
+                        <div id="failedSitesContent" class="status-tab-content">
+                            <div id="failedSitesContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manager Section -->
+            <div class="content-section" id="managerSection">
+                <div class="manager-header">
+                    <h2>🔧 Sitemap Manager</h2>
+                    <p>Manage all your saved sitemap collections</p>
+                </div>
+                
+                <div class="saved-sitemaps-section">
+                    <div class="section-header">
+                        <h2>📚 Saved Sitemaps</h2>
+                        <button id="refreshSitemaps" class="refresh-button">🔄 Refresh</button>
+                    </div>
+                    <div class="saved-sitemaps-container" id="savedSitemapsContainer">
+                        <div class="loading-sitemaps">Loading saved sitemaps...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/app.js"></script>
