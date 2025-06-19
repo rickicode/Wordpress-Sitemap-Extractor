@@ -1565,3 +1565,115 @@ textarea {
         justify-content: center;
     }
 }
+
+/* General Responsive Design Improvements */
+@media (max-width: 768px) {
+    .container {
+        margin: 15px;
+        padding: 15px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .header-left {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .header-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .nav-button {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+
+    .auth-modal {
+        padding: 25px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .manager-header h2 {
+        font-size: 24px;
+    }
+
+    .urls-header h2 {
+        font-size: 20px;
+    }
+
+    .status-tabs {
+        flex-direction: row;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .status-tab {
+        flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .container {
+        margin: 10px;
+        padding: 10px;
+    }
+
+    .header-nav {
+        gap: 5px;
+    }
+
+    .nav-button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .auth-modal {
+        padding: 20px;
+    }
+
+    .auth-header h2 {
+        font-size: 20px;
+    }
+
+    .auth-header p {
+        font-size: 14px;
+    }
+
+    .auth-form input, .auth-button {
+        padding: 12px 15px;
+        font-size: 14px;
+    }
+
+    textarea#siteUrls {
+        font-size: 14px;
+    }
+
+    .overview-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .card-value {
+        font-size: 20px;
+    }
+
+    .site-url {
+        font-size: 14px;
+    }
+
+    .urls-container textarea {
+        height: 250px;
+    }
+}
