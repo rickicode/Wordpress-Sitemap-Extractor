@@ -37,6 +37,13 @@ function requireAuth(req, res, next) {
 // Create Express app
 const app = express();
 
+// Middleware to log public IP
+app.use((req, res, next) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    console.log(`[ACCESS] ${ip} - ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // Configure middleware
 app.use(cors()); // Enable CORS for all routes
 app.use(morgan('dev')); // HTTP request logging
