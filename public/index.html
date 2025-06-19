@@ -54,6 +54,11 @@
                 <div class="input-row">
                     <input type="number" id="urlLimit" min="1" max="100" value="5" class="compact-input" placeholder="🔢 URL limit per site (default: 5)">
                     <input type="text" id="autoSaveId" placeholder="💾 Auto-save ID (e.g., my-sitemap-1, leave empty for auto)" class="compact-input" pattern="[a-zA-Z0-9-]+" maxlength="50">
+                    <label class="compact-checkbox" for="enableAutoSave">
+                        <input type="checkbox" id="enableAutoSave" checked>
+                        <span class="checkmark">✓</span>
+                        <span class="checkbox-text">Save Sitemap</span>
+                    </label>
                     <label class="compact-checkbox">
                         <input type="checkbox" id="checkValidity">
                         <span class="checkmark">✓</span>

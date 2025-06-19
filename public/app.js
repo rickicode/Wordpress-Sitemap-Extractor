@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const failedSitesContainer = document.getElementById('failedSitesContainer');
     
     // Auto-save Elements
+    const enableAutoSaveCheckbox = document.getElementById('enableAutoSave');
     const autoSaveId = document.getElementById('autoSaveId');
     const autoSaveSection = document.getElementById('autoSaveSection');
     const autoSavedId = document.getElementById('autoSavedId');
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         URL_LIMIT: 'xmlExtractor_urlLimit',
         CHECK_VALIDITY: 'xmlExtractor_checkValidity',
         AUTO_SAVE_ID: 'xmlExtractor_autoSaveId',
+        ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave',
         AUTH_PASSWORD: 'xmlExtractor_authPassword',
         AUTH_SESSION: 'xmlExtractor_authSession'
     };
@@ -89,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     autoSaveId.addEventListener('input', debounce(saveData, 500));
     urlLimitInput.addEventListener('change', saveData);
     checkValidityCheckbox.addEventListener('change', saveData);
+    enableAutoSaveCheckbox.addEventListener('change', saveData);
 
     // Authentication Functions
     function checkAuthenticationStatus() {
@@ -260,8 +263,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.allUrls && result.allUrls.length > 0) {
                 displayUrls(result.allUrls);
                 
-                // Auto-save to sitemap
-                await autoSaveSitemap(result.allUrls, result);
+                // Auto-save to sitemap if enabled
+                if (enableAutoSaveCheckbox.checked) {
+                    await autoSaveSitemap(result.allUrls, result);
+                }
                 
                 // Create more detailed status message
                 let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
@@ -549,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
             localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked.toString());
             localStorage.setItem(STORAGE_KEYS.AUTO_SAVE_ID, autoSaveId.value);
+            localStorage.setItem(STORAGE_KEYS.ENABLE_AUTO_SAVE, enableAutoSaveCheckbox.checked.toString());
         } catch (error) {
             console.warn('Failed to save data to localStorage:', error);
         }
@@ -578,6 +584,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const savedAutoSaveId = localStorage.getItem(STORAGE_KEYS.AUTO_SAVE_ID);
             if (savedAutoSaveId) {
                 autoSaveId.value = savedAutoSaveId;
+            }
+
+            // Load enable auto-save setting
+            const savedEnableAutoSave = localStorage.getItem(STORAGE_KEYS.ENABLE_AUTO_SAVE);
+            if (savedEnableAutoSave !== null) {
+                enableAutoSaveCheckbox.checked = savedEnableAutoSave === 'true';
             }
         } catch (error) {
             console.warn('Failed to load data from localStorage:', error);
