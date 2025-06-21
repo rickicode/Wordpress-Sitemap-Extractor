@@ -1170,7 +1170,7 @@ app.get('/api/folders', (req, res) => {
         const folders = items
             .filter(item => item.isDirectory() && !item.name.startsWith('.'))
             .map(item => item.name)
-            .sort();
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
         
         res.json({ folders });
     } catch (error) {
