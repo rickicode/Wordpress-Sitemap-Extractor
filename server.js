@@ -49,6 +49,22 @@ app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json()); // Parse JSON request bodies
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' directory
 
+// --- AUTHENTICATION API ---
+app.post('/api/auth/verify', (req, res) => {
+    const { password } = req.body;
+    const authPassword = process.env.AUTH_PASSWORD;
+
+    if (!authPassword) {
+        return res.status(503).json({ error: 'Authentication not configured on the server.' });
+    }
+
+    if (password && password === authPassword) {
+        res.json({ success: true, message: 'Authentication successful.' });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid password.' });
+    }
+});
+
 // Configuration
 const DEFAULT_LIMIT = 5;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
@@ -903,52 +919,66 @@ app.post('/api/sitemap/save-direct', requireAuth, async (req, res) => {
     if (!databaseEnabled) {
         return res.status(503).json({
             error: 'Database not configured',
-            message: 'Sitemap collection requires a database connection. Please configure DATABASE_URL in .env file.'
+            message: 'Sitemap collection requires a database connection.'
         });
     }
-    
+
+    let { sites, customId, urls, source } = req.body;
+
+    if (!sites || !Array.isArray(sites) || sites.length === 0) {
+        return res.status(400).json({ error: '`sites` array is required' });
+    }
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: '`urls` array is required' });
+    }
+
+    const siteUrl = sites.join(', ');
+    source = source || 'mixed'; // Default source if not provided
+
     try {
-        const { urls, customId, siteUrl } = req.body;
-        
-        if (!urls || !Array.isArray(urls) || urls.length === 0) {
-            return res.status(400).json({ error: 'Please provide an array of URLs' });
+        let result;
+        if (customId && customId.trim() !== '') {
+            // Upsert with custom ID
+            const query = `
+                INSERT INTO sitemaps (custom_id, site_url, urls, source, updated_at)
+                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+                ON CONFLICT (custom_id) DO UPDATE
+                SET urls = EXCLUDED.urls,
+                    site_url = EXCLUDED.site_url,
+                    source = EXCLUDED.source,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *;
+            `;
+            result = await pool.query(query, [customId, siteUrl, urls, source]);
+        } else {
+            // Insert new row and get the auto-generated ID
+            const query = `
+                INSERT INTO sitemaps (site_url, urls, source)
+                VALUES ($1, $2, $3)
+                RETURNING *;
+            `;
+            const insertResult = await pool.query(query, [siteUrl, urls, source]);
+            const newId = insertResult.rows[0].id;
+            
+            // Update the new row to set custom_id = id
+            const updateQuery = `
+                UPDATE sitemaps
+                SET custom_id = $1
+                WHERE id = $1
+                RETURNING *;
+            `;
+            result = await pool.query(updateQuery, [newId]);
         }
-        
-        if (!customId) {
-            return res.status(400).json({ error: 'Please provide a custom ID' });
-        }
-        
-        // Save to database (replace if exists and reset page views)
-        const query = `
-            INSERT INTO sitemaps (custom_id, site_url, urls, source, page_views, updated_at)
-            VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP)
-            ON CONFLICT (custom_id)
-            DO UPDATE SET
-                site_url = EXCLUDED.site_url,
-                urls = EXCLUDED.urls,
-                source = EXCLUDED.source,
-                page_views = 0,
-                updated_at = CURRENT_TIMESTAMP
-            RETURNING *;
-        `;
-        
-        const result = await pool.query(query, [
-            customId,
-            siteUrl || 'Direct URLs',
-            urls,
-            'direct'
-        ]);
         
         res.json({
             success: true,
-            sitemapId: customId,
-            sitemapUrl: `/sitemap/${customId}.xml`,
-            totalUrls: urls.length,
+            sitemapId: result.rows[0].custom_id,
+            sitemapUrl: `/sitemap/${result.rows[0].custom_id}.xml`,
             saved: result.rows[0]
         });
         
     } catch (error) {
-        console.error('Error saving sitemap directly:', error);
+        console.error('Error saving sitemap:', error);
         res.status(500).json({ error: 'Internal server error', message: error.message });
     }
 });

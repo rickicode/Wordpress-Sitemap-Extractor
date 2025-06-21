@@ -1,26 +1,115 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const folderSelect = document.getElementById('folderViewerSelect');
-    const urlListView = document.getElementById('urlListView');
-    const urlListHeader = document.getElementById('urlListHeader');
-    const urlListViewCount = document.getElementById('urlListViewCount');
-    const copyButton = document.getElementById('copyViewedUrls');
-    const toast = document.getElementById('toast');
+    const getElem = (id) => document.getElementById(id);
 
-    let authPassword = '';
+    // --- DOM Elements ---
+    const authOverlay = getElem('authOverlay');
+    const mainApp = getElem('mainApp');
+    const globalAuthPassword = getElem('globalAuthPassword');
+    const globalAuthButton = getElem('globalAuthButton');
+    const globalAuthStatus = getElem('globalAuthStatus');
+    const logoutButton = getElem('logoutButton');
+    
+    const folderSelect = getElem('folderViewerSelect');
+    const urlListView = getElem('urlListView');
+    const urlListHeader = getElem('urlListHeader');
+    const urlListViewCount = getElem('urlListViewCount');
+    const copyButton = getElem('copyViewedUrls');
+    const toast = getElem('toast');
+
+    // --- Global State ---
+    let currentPassword = '';
     const STORAGE_AUTH_KEY = 'xmlExtractor_authPassword_v3';
+    const STORAGE_SESSION_KEY = 'xmlExtractor_authSession_v3';
 
-    function showToast(message) {
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
+    // --- Initialization ---
+    checkAuthenticationStatus();
+    setupEventListeners();
+
+    // --- Event Listeners ---
+    function setupEventListeners() {
+        globalAuthButton.addEventListener('click', authenticate);
+        globalAuthPassword.addEventListener('keypress', e => e.key === 'Enter' && authenticate());
+        logoutButton.addEventListener('click', logout);
+        folderSelect.addEventListener('change', (e) => getUrls(e.target.value));
+        copyButton.addEventListener('click', copyUrls);
     }
 
+    // --- Authentication Logic ---
+    function checkAuthenticationStatus() {
+        const savedPassword = localStorage.getItem(STORAGE_AUTH_KEY);
+        if (savedPassword) {
+            currentPassword = savedPassword;
+            showMainApp();
+            getFolders();
+        } else {
+            showAuthOverlay();
+        }
+    }
+
+    async function authenticate() {
+        const password = globalAuthPassword.value.trim();
+        if (!password) return showAuthStatus('Please enter a password', 'error');
+
+        globalAuthButton.disabled = true;
+        showAuthStatus('Verifying...', 'normal');
+
+        try {
+            const response = await fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) throw new Error(result.message || 'Authentication failed');
+
+            currentPassword = password;
+            localStorage.setItem(STORAGE_AUTH_KEY, password);
+            localStorage.setItem(STORAGE_SESSION_KEY, 'authenticated');
+
+            showAuthStatus('Success!', 'success');
+            setTimeout(() => {
+                showMainApp();
+                getFolders();
+            }, 1000);
+
+        } catch (error) {
+            showAuthStatus(error.message, 'error');
+        } finally {
+            globalAuthButton.disabled = false;
+        }
+    }
+
+    function logout() {
+        if (!confirm('Are you sure you want to logout?')) return;
+        currentPassword = '';
+        localStorage.removeItem(STORAGE_AUTH_KEY);
+        localStorage.removeItem(STORAGE_SESSION_KEY);
+        showAuthOverlay();
+        globalAuthPassword.value = '';
+        showAuthStatus('', 'normal');
+    }
+
+    function showAuthOverlay() {
+        authOverlay.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+    }
+
+    function showMainApp() {
+        authOverlay.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+    }
+
+    function showAuthStatus(message, type = 'normal') {
+        globalAuthStatus.textContent = message;
+        globalAuthStatus.className = `auth-status ${type}`;
+    }
+
+    // --- Core Viewer Logic ---
     async function getFolders() {
         try {
             const response = await fetch('/api/folders', {
-                headers: { 'x-auth-password': authPassword }
+                headers: { 'x-auth-password': currentPassword }
             });
             if (!response.ok) throw new Error('Failed to fetch folders. Check authentication.');
             const { folders } = await response.json();
@@ -48,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`/api/urls/${folder}`, {
-                headers: { 'x-auth-password': authPassword }
+                headers: { 'x-auth-password': currentPassword }
             });
             if (!response.ok) throw new Error(`Failed to fetch URLs for ${folder}.`);
             
@@ -70,25 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('URLs copied to clipboard!');
     }
 
-    function init() {
-        authPassword = localStorage.getItem(STORAGE_AUTH_KEY);
-        if (!authPassword) {
-            document.body.innerHTML = `
-                <div class="container">
-                    <div class="glass-card" style="padding: 40px; text-align: center;">
-                        <h1>Authentication Required</h1>
-                        <p style="color: var(--text-secondary); margin-top: 10px;">
-                            Please <a href="/#auth" style="color: var(--primary-accent);">login</a> on the main page first.
-                        </p>
-                    </div>
-                </div>`;
-            return;
-        }
+    // --- Utilities ---
+    let toastTimeout;
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
         
-        getFolders();
-        folderSelect.addEventListener('change', (e) => getUrls(e.target.value));
-        copyButton.addEventListener('click', copyUrls);
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
     }
-
-    init();
 });

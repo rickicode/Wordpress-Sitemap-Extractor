@@ -8,34 +8,53 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
-        <header class="header glass-card">
-            <div class="header-content">
-                <div class="header-left">
-                    <img src="/diamond.svg" alt="Diamond Logo" class="logo">
-                    <h1>Saved URL Viewer</h1>
-                </div>
-                <nav class="header-nav">
-                    <a href="/" class="nav-button">🏠 Home</a>
-                </nav>
+    <!-- Authentication Section -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-modal glass-card">
+            <div class="auth-header">
+                <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
+                <h2>Authentication Required</h2>
+                <p>Enter your password to access the viewer.</p>
             </div>
-        </header>
+            <div class="auth-form">
+                <input type="password" id="globalAuthPassword" placeholder="Enter access password">
+                <button id="globalAuthButton" class="auth-button">Access Viewer</button>
+            </div>
+            <div id="globalAuthStatus" class="auth-status"></div>
+        </div>
+    </div>
 
-        <main class="viewer-main glass-card">
-            <div class="viewer-controls">
-                <label for="folderViewerSelect">Select a Folder to View:</label>
-                <select id="folderViewerSelect" class="compact-input"></select>
-            </div>
-
-            <div class="url-display-section">
-                <div class="urls-header">
-                    <h2 id="urlListHeader">Select a folder to see the URLs</h2>
-                    <span id="urlListViewCount" class="count-badge">0 URLs</span>
+    <div class="main-app hidden" id="mainApp">
+        <div class="container">
+            <header class="header glass-card">
+                <div class="header-content">
+                    <div class="header-left">
+                        <img src="/diamond.svg" alt="Diamond Logo" class="logo">
+                        <h1>Saved URL Viewer</h1>
+                    </div>
+                    <nav class="header-nav">
+                        <a href="/" class="nav-button">🏠 Home</a>
+                        <button class="nav-button logout" id="logoutButton">Logout</button>
+                    </nav>
                 </div>
-                <textarea id="urlListView" readonly></textarea>
-                <button id="copyViewedUrls" class="action-btn" disabled>📋 Copy All</button>
-            </div>
-        </main>
+            </header>
+
+            <main class="viewer-main glass-card">
+                <div class="viewer-controls">
+                    <label for="folderViewerSelect">Select a Folder to View:</label>
+                    <select id="folderViewerSelect" class="compact-input"></select>
+                </div>
+
+                <div class="url-display-section">
+                    <div class="urls-header">
+                        <h2 id="urlListHeader">Select a folder to see the URLs</h2>
+                        <span id="urlListViewCount" class="count-badge">0 URLs</span>
+                    </div>
+                    <textarea id="urlListView" readonly></textarea>
+                    <button id="copyViewedUrls" class="action-btn" disabled>📋 Copy All</button>
+                </div>
+            </main>
+        </div>
     </div>
 
     <!-- Toast Notification -->
