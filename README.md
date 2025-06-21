@@ -4,33 +4,29 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 
 ## Features
 
-- **Dual Extraction Modes**:
-  - **Sitemap Mode**: Extract article URLs from WordPress XML sitemaps
-  - **Feed Mode**: Extract article URLs from RSS/Atom feeds
+- **Smart Extraction**: Automatically tries to find and extract from RSS/Atom feeds first, then falls back to XML sitemaps for comprehensive URL discovery.
+- **📁 Save URLs to File**:
+  - Save extracted URLs directly to a text file (`URL_LIST.txt`) on the server.
+  - Select a target folder from a dropdown list.
+  - Automatically creates a companion `INFO.txt` file with metadata (timestamp, URL count).
+  - The folder list is sorted numerically (natural sort, e.g., RDP1, RDP2, RDP10).
+  - Hidden folders (starting with a dot) are excluded from the list.
 - **🗺️ Sitemap Collection Feature**:
-  - Save extracted URLs as organized sitemaps
-  - Custom ID support for easy sitemap management
-  - Auto-replace existing sitemaps with same ID
-  - PostgreSQL database storage (Supabase compatible)
-  - Access saved sitemaps via permalink `/sitemap/123`
-  - Browse and manage all saved sitemaps
+  - Save extracted URLs as organized sitemaps in a database.
+  - Custom ID support for easy sitemap management.
+  - Auto-replace existing sitemaps with the same ID.
+  - PostgreSQL database storage (Supabase compatible).
+  - Access saved sitemaps via permalink `/sitemap/123`.
+  - Browse and manage all saved sitemaps.
 - **🔐 Authentication & Security**:
-  - Password-protected sitemap management
-  - Secure access to saved data via AUTH_PASSWORD
-  - Management interface at `/manage` for data administration
-  - Delete, view, and copy functionality for saved sitemaps
-- Web interface for inputting multiple WordPress site URLs (one per line)
-- Server-side processing of WordPress sitemaps and feeds for better performance and reliability
-- **Smart sitemap detection** (Sitemap Mode):
-  - First tries `/wp-sitemap-posts-post-1.xml`
-  - If that fails, tries alternative locations (`/sitemap.xml`, `/sitemap_index.xml`, `/wp-sitemap.xml`)
-  - Parses sitemap indexes to find all post-related sitemaps
-- **Smart feed detection** (Feed Mode):
-  - Tries common WordPress feed paths (`/feed/`, `/rss/`, `/atom.xml`, etc.)
-  - Discovers feed URLs from HTML head tags
-  - Extracts article URLs directly from RSS/Atom feed content
-- Option to validate URLs to check if they're accessible (not returning 404) - Sitemap Mode only
-- Configurable URL limit per site - Sitemap Mode only
+  - Password-protected sitemap management.
+  - Secure access to saved data via `AUTH_PASSWORD`.
+  - Management interface at `/manage` for data administration.
+  - Delete, view, and copy functionality for saved sitemaps.
+- Web interface for inputting multiple WordPress site URLs (one per line).
+- Server-side processing for better performance and reliability.
+- Option to validate URLs to check if they're accessible (not returning 404).
+- Configurable URL limit per site.
 - Copy to clipboard functionality for extracted URLs
 - Detailed summary of extraction results
 - Cross-origin request support through proper CORS configuration
@@ -91,16 +87,15 @@ http://localhost:3000
 
 ### Using the Web Interface
 
-1. Enter multiple WordPress site URLs in the textarea, one per line
-2. Choose extraction type:
-   - **📄 Extract Article URLs from Sitemaps**: Extract from WordPress XML sitemaps (traditional method)
-   - **📡 Extract RSS/Atom Feed URLs**: Extract article URLs directly from RSS/Atom feeds
-3. For Sitemap Mode only:
-   - Set the URL limit per site (default: 5)
-   - Optionally enable URL validation to check for 404s
-4. Click "Extract URLs"
-5. View the extracted URLs and summary
-6. Use the "Copy URLs" button to copy all URLs to clipboard
+1. Enter multiple WordPress site URLs in the textarea, one per line.
+2. Adjust settings as needed:
+   - **URL limit per site**: Set the maximum number of URLs to extract from each site.
+   - **Save Sitemap**: Enable to save the results as a sitemap collection in the database (requires custom ID).
+   - **Validate URLs**: Check if the extracted URLs are accessible (not 404).
+   - **Save URLs to File**: Enable to save the results to a text file. A dropdown will appear to select the target folder.
+3. Click "Extract URLs".
+4. View the extracted URLs and a summary of the results.
+5. Use the "Copy URLs" button to copy all extracted URLs to your clipboard.
 
 ### API Endpoints
 

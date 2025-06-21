@@ -1,114 +1,101 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Authentication Elements
-    const authOverlay = document.getElementById('authOverlay');
-    const mainApp = document.getElementById('mainApp');
-    const globalAuthPassword = document.getElementById('globalAuthPassword');
-    const globalAuthButton = document.getElementById('globalAuthButton');
-    const globalAuthStatus = document.getElementById('globalAuthStatus');
-    
-    // Navigation Elements
-    const homeNav = document.getElementById('homeNav');
-    const manageNav = document.getElementById('manageNav');
-    const logoutButton = document.getElementById('logoutButton');
-    const homeSection = document.getElementById('homeSection');
-    const managerSection = document.getElementById('managerSection');
-    
-    // DOM Elements
-    const siteUrlsTextarea = document.getElementById('siteUrls');
-    const urlLimitInput = document.getElementById('urlLimit');
-    const checkValidityCheckbox = document.getElementById('checkValidity');
-    const extractButton = document.getElementById('extract');
-    const copyButton = document.getElementById('copyUrls');
-    const statusMessage = document.getElementById('statusMessage');
-    const extractedUrlsTextarea = document.getElementById('extractedUrls');
-    const urlCountDisplay = document.getElementById('urlCount');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const progressContainer = document.getElementById('progressContainer');
-    const progressCount = document.getElementById('progressCount');
-    const progressFill = document.getElementById('progressFill');
-    const resultsOverview = document.getElementById('resultsOverview');
-    const sitesStatusSection = document.getElementById('sitesStatusSection');
-    const urlsSection = document.getElementById('urlsSection');
-    const successCount = document.getElementById('successCount');
-    const failedCount = document.getElementById('failedCount');
-    const totalUrlsCount = document.getElementById('totalUrlsCount');
-    const allSitesContainer = document.getElementById('allSitesContainer');
-    const successfulSitesContainer = document.getElementById('successfulSitesContainer');
-    const failedSitesContainer = document.getElementById('failedSitesContainer');
-    
-    // Auto-save Elements
-    const enableAutoSaveCheckbox = document.getElementById('enableAutoSave');
-    const autoSaveId = document.getElementById('autoSaveId');
-    const autoSaveSection = document.getElementById('autoSaveSection');
-    const autoSavedId = document.getElementById('autoSavedId');
-    const autoSavedUrl = document.getElementById('autoSavedUrl');
-    const copyAutoSavedUrlButton = document.getElementById('copyAutoSavedUrl');
-    const openAutoSavedUrlButton = document.getElementById('openAutoSavedUrl');
-    const savedSitemapsContainer = document.getElementById('savedSitemapsContainer');
-    const refreshSitemapsButton = document.getElementById('refreshSitemaps');
-    
-    // URL Save Elements
-    const saveUrlToFileCheckbox = document.getElementById('saveUrlToFile');
-    const folderSelect = document.getElementById('folderSelect');
+    // --- DOM Elements ---
+    const getElem = (id) => document.getElementById(id);
 
-    // Global variables
+    // Authentication
+    const authOverlay = getElem('authOverlay');
+    const mainApp = getElem('mainApp');
+    const globalAuthPassword = getElem('globalAuthPassword');
+    const globalAuthButton = getElem('globalAuthButton');
+    const globalAuthStatus = getElem('globalAuthStatus');
+    
+    // Navigation
+    const homeNav = getElem('homeNav');
+    const manageNav = getElem('manageNav');
+    const logoutButton = getElem('logoutButton');
+    const homeSection = getElem('homeSection');
+    const managerSection = getElem('managerSection');
+    
+    // Main Controls
+    const siteUrlsTextarea = getElem('siteUrls');
+    const urlLimitInput = getElem('urlLimit');
+    const checkValidityCheckbox = getElem('checkValidity');
+    const extractButton = getElem('extract');
+    const clearDataButton = getElem('clearData');
+    
+    // Auto-save & File Save
+    const autoSaveIndicator = getElem('autoSaveIndicator');
+    const enableAutoSaveCheckbox = getElem('enableAutoSave');
+    const autoSaveIdInput = getElem('autoSaveId');
+    const saveUrlToFileCheckbox = getElem('saveUrlToFile');
+    const folderSelectContainer = getElem('folderSelectContainer');
+    const folderSelect = getElem('folderSelect');
+    
+    // Status & Results
+    const statusMessage = getElem('statusMessage');
+    const loadingIndicator = getElem('loadingIndicator');
+    const resultsOverview = getElem('resultsOverview');
+    const successCount = getElem('successCount');
+    const failedCount = getElem('failedCount');
+    const totalUrlsCount = getElem('totalUrlsCount');
+    const urlsSection = getElem('urlsSection');
+    const extractedUrlsTextarea = getElem('extractedUrls');
+    const urlCountDisplay = getElem('urlCount');
+    const copyUrlsButton = getElem('copyUrls');
+    const autoSaveSection = getElem('autoSaveSection');
+    const autoSavedId = getElem('autoSavedId');
+    const autoSavedUrl = getElem('autoSavedUrl');
+    const copyAutoSavedUrlButton = getElem('copyAutoSavedUrl');
+    const openAutoSavedUrlButton = getElem('openAutoSavedUrl');
+    
+    // Manager
+    const savedSitemapsContainer = getElem('savedSitemapsContainer');
+    const refreshSitemapsButton = getElem('refreshSitemaps');
+    const toast = getElem('toast');
+
+    // --- Global State ---
     let currentPassword = '';
-    let isAuthenticated = false;
-
-    // LocalStorage keys
     const STORAGE_KEYS = {
-        SITE_URLS: 'xmlExtractor_siteUrls',
-        URL_LIMIT: 'xmlExtractor_urlLimit',
-        CHECK_VALIDITY: 'xmlExtractor_checkValidity',
-        AUTO_SAVE_ID: 'xmlExtractor_autoSaveId',
-        ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave',
-        AUTH_PASSWORD: 'xmlExtractor_authPassword',
-        AUTH_SESSION: 'xmlExtractor_authSession',
-        SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile'
+        SITE_URLS: 'xmlExtractor_siteUrls_v3', URL_LIMIT: 'xmlExtractor_urlLimit_v3',
+        CHECK_VALIDITY: 'xmlExtractor_checkValidity_v3', AUTO_SAVE_ID: 'xmlExtractor_autoSaveId_v3',
+        ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave_v3', AUTH_PASSWORD: 'xmlExtractor_authPassword_v3',
+        AUTH_SESSION: 'xmlExtractor_authSession_v3', SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile_v3'
     };
 
-    // Check authentication on page load
+    // --- Initialization ---
     checkAuthenticationStatus();
+    setupEventListeners();
 
-    // Authentication Event Listeners
-    globalAuthButton.addEventListener('click', authenticate);
-    globalAuthPassword.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') authenticate();
-    });
-    
-    // Navigation Event Listeners
-    homeNav.addEventListener('click', () => showSection('home'));
-    manageNav.addEventListener('click', () => showSection('manager'));
-    logoutButton.addEventListener('click', logout);
-    
-    // Event Listeners
-    extractButton.addEventListener('click', startExtraction);
-    copyButton.addEventListener('click', copyUrls);
-    document.getElementById('clearData').addEventListener('click', clearSavedData);
-    
-    // Auto-save Event Listeners
-    copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
-    openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
-    refreshSitemapsButton.addEventListener('click', loadSavedSitemaps);
-    
-    // Auto-save data when user types or changes settings
-    siteUrlsTextarea.addEventListener('input', debounce(saveData, 500));
-    autoSaveId.addEventListener('input', debounce(saveData, 500));
-    urlLimitInput.addEventListener('change', saveData);
-    checkValidityCheckbox.addEventListener('change', saveData);
-    enableAutoSaveCheckbox.addEventListener('change', saveData);
-    
-    // URL Save Event Listeners
-    saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
-
-    // Authentication Functions
-    function checkAuthenticationStatus() {
-        const savedAuth = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
-        const savedPassword = localStorage.getItem(STORAGE_KEYS.AUTH_PASSWORD);
+    // --- Event Listeners Setup ---
+    function setupEventListeners() {
+        globalAuthButton.addEventListener('click', authenticate);
+        globalAuthPassword.addEventListener('keypress', e => e.key === 'Enter' && authenticate());
         
-        if (savedAuth && savedPassword) {
-            currentPassword = savedPassword;
-            isAuthenticated = true;
+        homeNav.addEventListener('click', () => showSection('home'));
+        manageNav.addEventListener('click', () => showSection('manager'));
+        logoutButton.addEventListener('click', logout);
+        
+        extractButton.addEventListener('click', startExtraction);
+        copyUrlsButton.addEventListener('click', copyUrls);
+        clearDataButton.addEventListener('click', clearSavedData);
+        
+        refreshSitemapsButton.addEventListener('click', loadSavedSitemaps);
+        copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
+        openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
+        
+        const inputsToSave = [siteUrlsTextarea, autoSaveIdInput, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox];
+        inputsToSave.forEach(input => {
+            const eventType = input.type === 'checkbox' || input.type === 'select-one' ? 'change' : 'input';
+            input.addEventListener(eventType, debounce(saveData, 500));
+        });
+
+        saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
+    }
+
+    // --- Authentication ---
+    function checkAuthenticationStatus() {
+        if (localStorage.getItem(STORAGE_KEYS.AUTH_SESSION) && localStorage.getItem(STORAGE_KEYS.AUTH_PASSWORD)) {
+            currentPassword = localStorage.getItem(STORAGE_KEYS.AUTH_PASSWORD);
             showMainApp();
             loadSavedData();
             loadSavedSitemaps();
@@ -119,61 +106,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function authenticate() {
         const password = globalAuthPassword.value.trim();
-        
-        if (!password) {
-            showAuthStatus('Please enter a password', 'error');
-            return;
-        }
+        if (!password) return showAuthStatus('Please enter a password', 'error');
         
         globalAuthButton.disabled = true;
         showAuthStatus('Authenticating...', 'normal');
         
         try {
-            // Test authentication with a simple API call
-            const response = await fetch('/api/sitemaps', {
-                headers: {
-                    'x-auth-password': password
-                }
-            });
+            const response = await fetch('/api/sitemaps', { headers: { 'x-auth-password': password } });
+            if (!response.ok) throw new Error((await response.json()).message || 'Authentication failed');
             
-            if (response.ok) {
-                currentPassword = password;
-                isAuthenticated = true;
-                
-                // Save authentication to localStorage
-                localStorage.setItem(STORAGE_KEYS.AUTH_PASSWORD, password);
-                localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'authenticated');
-                
-                showAuthStatus('Authentication successful!', 'success');
-                setTimeout(() => {
-                    showMainApp();
-                    loadSavedData();
-                    loadSavedSitemaps();
-                }, 1000);
-            } else {
-                const error = await response.json();
-                showAuthStatus(error.message || 'Authentication failed', 'error');
-            }
+            currentPassword = password;
+            localStorage.setItem(STORAGE_KEYS.AUTH_PASSWORD, password);
+            localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, 'authenticated');
+            
+            showAuthStatus('Success!', 'success');
+            setTimeout(() => { showMainApp(); loadSavedData(); loadSavedSitemaps(); }, 1000);
         } catch (error) {
-            showAuthStatus('Network error: ' + error.message, 'error');
+            showAuthStatus(error.message, 'error');
         } finally {
             globalAuthButton.disabled = false;
         }
     }
 
     function logout() {
-        if (confirm('Are you sure you want to logout?')) {
-            currentPassword = '';
-            isAuthenticated = false;
-            
-            // Clear authentication from localStorage
-            localStorage.removeItem(STORAGE_KEYS.AUTH_PASSWORD);
-            localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
-            
-            showAuthOverlay();
-            globalAuthPassword.value = '';
-            showAuthStatus('', 'normal');
-        }
+        if (!confirm('Are you sure you want to logout?')) return;
+        currentPassword = '';
+        localStorage.removeItem(STORAGE_KEYS.AUTH_PASSWORD);
+        localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+        showAuthOverlay();
+        globalAuthPassword.value = '';
+        showAuthStatus('', 'normal');
     }
 
     function showAuthOverlay() {
@@ -184,876 +146,324 @@ document.addEventListener('DOMContentLoaded', () => {
     function showMainApp() {
         authOverlay.classList.add('hidden');
         mainApp.classList.remove('hidden');
-        showSection('home'); // Show home section by default
+        showSection('home');
     }
 
     function showAuthStatus(message, type = 'normal') {
         globalAuthStatus.textContent = message;
-        globalAuthStatus.className = 'auth-status';
-        
-        if (type === 'error') {
-            globalAuthStatus.classList.add('error');
-        } else if (type === 'success') {
-            globalAuthStatus.classList.add('success');
-        }
+        globalAuthStatus.className = `auth-status ${type}`;
     }
 
-    // Navigation Functions
+    // --- Navigation ---
     function showSection(sectionName) {
-        // Update navigation buttons
-        document.querySelectorAll('.nav-button:not(.logout)').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        document.querySelectorAll('.nav-button:not(.logout)').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
         
-        // Update content sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        if (sectionName === 'home') {
-            homeNav.classList.add('active');
-            homeSection.classList.add('active');
-        } else if (sectionName === 'manager') {
-            manageNav.classList.add('active');
-            managerSection.classList.add('active');
-            loadSavedSitemaps(); // Refresh sitemaps when switching to manager
+        const sectionMap = { home: homeNav, manager: manageNav };
+        const element = sectionMap[sectionName];
+        if(element) {
+            element.classList.add('active');
+            getElem(`${sectionName}Section`).classList.add('active');
         }
+        if (sectionName === 'manager') loadSavedSitemaps();
     }
 
-    // Function to start URL extraction
+    // --- Core Logic ---
     async function startExtraction() {
-        const siteUrls = getSiteUrls();
-        if (siteUrls.length === 0) {
-            showStatus('Please enter at least one valid URL', 'error');
-            return;
-        }
+        const siteUrls = siteUrlsTextarea.value.split('\n').map(url => url.trim()).filter(Boolean);
+        if (siteUrls.length === 0) return showStatus('Please enter at least one valid URL.', 'error');
+        if (saveUrlToFileCheckbox.checked && !folderSelect.value) return showStatus('Please select a folder.', 'error');
 
-        // Validate folder selection if save to file is enabled
-        if (saveUrlToFileCheckbox.checked) {
-            if (!folderSelect.value || folderSelect.value.trim() === '') {
-                showStatus('⚠️ "Save URLs to File" is enabled but no folder is selected. Please select a folder or disable the feature.', 'error');
-                return;
-            }
-        }
-
-        const urlLimit = parseInt(urlLimitInput.value) || 5;
-        const checkValidity = checkValidityCheckbox.checked;
-        
-        // Save data when extract button is pressed
-        saveData();
-        
         resetUI();
         showLoading(true);
-        showStatus('Starting smart extraction (feeds first, then sitemaps)...', 'normal');
-        
+
         try {
-            // Smart extraction: feeds first, then sitemaps
             const payload = {
                 sites: siteUrls,
-                limit: urlLimit,
-                checkValidity: checkValidity
+                limit: parseInt(urlLimitInput.value) || 10,
+                checkValidity: checkValidityCheckbox.checked
             };
             
-            // Make API call to the backend
             const response = await fetch('/api/extract', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to extract URLs');
-            }
+            if (!response.ok) throw new Error((await response.json()).message || 'Failed to extract URLs');
             
             const result = await response.json();
-            
-            // Display overview cards
-            displayOverview(result);
-            
-            // Display sites status
-            displaySitesStatus(result);
-            
-            if (result.allUrls && result.allUrls.length > 0) {
-                displayUrls(result.allUrls);
-                
-                // Auto-save to sitemap if enabled
-                if (enableAutoSaveCheckbox.checked) {
-                    await autoSaveSitemap(result.allUrls, result);
-                }
-                
-                let statusDisplayedBySave = false;
-                // Save URLs to file if enabled
-                if (saveUrlToFileCheckbox.checked && folderSelect.value) {
-                    statusDisplayedBySave = await saveUrlsToFile(result.allUrls, folderSelect.value);
-                }
-                
-                // Only show the generic success message if a more specific one wasn't shown
-                if (!statusDisplayedBySave) {
-                    let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
-                    if (result.failedSites > 0) {
-                        statusMsg += ` from ${result.successfulSites} sites (${result.failedSites} sites failed)`;
-                    } else {
-                        statusMsg += ` from ${result.successfulSites} sites`;
-                    }
-                    showStatus(statusMsg, 'success');
-                }
-                copyButton.disabled = false;
-            } else {
-                if (result.failedSites === result.totalSites) {
-                    showStatus('All sites failed to extract URLs. Please check the sites status below for details.', 'error');
-                } else {
-                    showStatus('No URLs found. Please check if these are WordPress sites with feeds or sitemaps.', 'error');
-                }
-            }
+            displayResults(result, siteUrls);
+
         } catch (error) {
             showStatus(`Error: ${error.message}`, 'error');
-            console.error(error);
-        } finally {
-            showLoading(false);
-            hideProgress();
-            loadingIndicator.classList.add('hidden'); // Ensure loading indicator is hidden
         }
     }
-    
-    // Function to get site URLs from textarea (one per line)
-    function getSiteUrls() {
-        return siteUrlsTextarea.value
-            .split('\n')
-            .map(url => url.trim())
-            .filter(url => url); // Filter out empty lines
+
+    // --- UI Update Functions ---
+    function displayResults(result, siteUrls) {
+        displayOverview(result);
+
+        if (result.allUrls && result.allUrls.length > 0) {
+            displayUrls(result.allUrls);
+            if (enableAutoSaveCheckbox.checked) autoSaveSitemap(result, siteUrls);
+            if (saveUrlToFileCheckbox.checked && folderSelect.value) saveUrlsToFile(result.allUrls, folderSelect.value);
+            showStatus(`Extraction complete. Found ${result.allUrls.length} URLs.`, 'success');
+        } else {
+            showStatus('No URLs found. Check if sites have feeds or sitemaps.', 'error');
+        }
     }
-    
-    // Display overview cards
+
+    function resetUI() {
+        showStatus('', 'normal');
+        resultsOverview.classList.add('hidden');
+        urlsSection.classList.add('hidden');
+        autoSaveSection.classList.add('hidden');
+        extractedUrlsTextarea.value = '';
+        urlCountDisplay.textContent = '0 URLs';
+        copyUrlsButton.disabled = true;
+    }
+
+    function showLoading(isLoading) {
+        extractButton.disabled = isLoading;
+        if (isLoading) {
+            statusMessage.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+        } else {
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+
+    function showStatus(message, type = 'normal') {
+        showLoading(false); // Always hide loader when showing a status
+        if (!message || message.trim() === '') {
+            statusMessage.classList.add('hidden');
+        } else {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.classList.remove('hidden');
+        }
+    }
+
     function displayOverview(result) {
         successCount.textContent = result.successfulSites || 0;
         failedCount.textContent = result.failedSites || 0;
         totalUrlsCount.textContent = result.totalUrls || 0;
-        
-        // Reset the card title for URLs
-        document.querySelector('.urls-card .card-title').textContent = 'Total URLs';
-        
         resultsOverview.classList.remove('hidden');
     }
-    
-    // Display sites status with tabs
-    function displaySitesStatus(result) {
-        const allSites = [];
-        const successfulSites = [];
-        const failedSites = [];
-        
-        // Organize sites by status
-        for (const [site, details] of Object.entries(result.siteResults)) {
-            const siteData = {
-                url: site,
-                ...details
-            };
-            
-            allSites.push(siteData);
-            
-            if (details.error) {
-                failedSites.push(siteData);
-            } else {
-                successfulSites.push(siteData);
-            }
-        }
-        
-        // Populate all sites tab
-        allSitesContainer.innerHTML = '';
-        allSites.forEach(site => {
-            allSitesContainer.appendChild(createSiteItem(site));
-        });
-        
-        // Populate successful sites tab
-        successfulSitesContainer.innerHTML = '';
-        if (successfulSites.length > 0) {
-            successfulSites.forEach(site => {
-                successfulSitesContainer.appendChild(createSiteItem(site));
-            });
-        } else {
-            successfulSitesContainer.innerHTML = '<div class="no-sites-message">🎉 No successful extractions yet</div>';
-        }
-        
-        // Populate failed sites tab
-        failedSitesContainer.innerHTML = '';
-        if (failedSites.length > 0) {
-            failedSites.forEach(site => {
-                failedSitesContainer.appendChild(createSiteItem(site));
-            });
-        } else {
-            failedSitesContainer.innerHTML = '<div class="no-sites-message">✅ No failed extractions</div>';
-        }
-        
-        sitesStatusSection.classList.remove('hidden');
-    }
-    
-    // Create a site item element
-    function createSiteItem(site) {
-        const siteItem = document.createElement('div');
-        siteItem.className = 'site-item';
-        
-        const isSuccess = !site.error;
-        const statusBadge = isSuccess ?
-            '<span class="site-status-badge badge-success">Success</span>' :
-            '<span class="site-status-badge badge-failed">Failed</span>';
-        
-        let detailsHTML = '';
-        let errorHTML = '';
-        let sourceHTML = '';
-        
-        if (isSuccess) {
-            // Show source information
-            const sourceIcon = site.source === 'feed' ? '📡' : '🗺️';
-            const sourceName = site.source === 'feed' ? 'RSS/Atom Feed' : 'XML Sitemap';
-            sourceHTML = `
-                <div class="detail-item source-info">
-                    <span class="detail-icon">${sourceIcon}</span>
-                    <span>Source: ${sourceName}</span>
-                </div>
-            `;
-            
-            detailsHTML = `
-                <div class="site-details">
-                    ${sourceHTML}
-                    <div class="detail-item">
-                        <span class="detail-icon">📄</span>
-                        <span>Total URLs: ${site.totalUrls}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-icon">✅</span>
-                        <span>Valid: ${site.validUrls}</span>
-                    </div>
-                    ${site.invalidUrls > 0 ? `
-                    <div class="detail-item">
-                        <span class="detail-icon">❌</span>
-                        <span>Invalid: ${site.invalidUrls}</span>
-                    </div>` : ''}
-                </div>
-            `;
-        } else {
-            errorHTML = `
-                <div class="site-error">
-                    <strong>Error:</strong> ${site.error}
-                </div>
-                <div class="site-suggestions">
-                    <strong>💡 Suggestions:</strong> ${getSuggestions(site.error)}
-                </div>
-            `;
-        }
-        
-        siteItem.innerHTML = `
-            <div class="site-item-header">
-                <div class="site-url">
-                    ${isSuccess ? '✅' : '❌'} ${site.url}
-                </div>
-                ${statusBadge}
-            </div>
-            ${detailsHTML}
-            ${errorHTML}
-        `;
-        
-        return siteItem;
-    }
-    
-    // Get suggestions based on error type
-    function getSuggestions(error) {
-        const errorLower = error.toLowerCase();
-        
-        if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
-            return 'The site may be slow to respond. Try again later or check if the site is accessible.';
-        } else if (errorLower.includes('404') || errorLower.includes('not found')) {
-            return 'No feeds or sitemaps were found. Verify this is a WordPress site with RSS/Atom feeds or XML sitemaps enabled.';
-        } else if (errorLower.includes('network') || errorLower.includes('enotfound') || errorLower.includes('dns')) {
-            return 'Cannot reach the website. Check the URL spelling and ensure the site is online.';
-        } else if (errorLower.includes('ssl') || errorLower.includes('certificate')) {
-            return 'SSL/Certificate issue. Try using http:// instead of https:// or contact site administrator.';
-        } else if (errorLower.includes('parse') || errorLower.includes('xml')) {
-            return 'Invalid XML format. The feed or sitemap may be corrupted or not properly formatted.';
-        } else if (errorLower.includes('invalid url')) {
-            return 'Please check the URL format. Ensure it includes the domain (e.g., example.com or https://example.com).';
-        } else if (errorLower.includes('no feeds found') || errorLower.includes('no urls found')) {
-            return 'No content sources were detected. Check if the site has RSS/Atom feeds or XML sitemaps enabled.';
-        } else {
-            return 'Please verify the URL is correct and the site has WordPress feeds or sitemaps enabled.';
-        }
-    }
-    
-    // Tab switching function
-    window.showStatusTab = function(tabName) {
-        // Remove active class from all tabs and contents
-        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.status-tab-content').forEach(content => content.classList.remove('active'));
-        
-        // Add active class to selected tab and content
-        document.getElementById(`${tabName}SitesTab`).classList.add('active');
-        document.getElementById(`${tabName}SitesContent`).classList.add('active');
-    }
-    
-    // Show progress bar
-    function showProgress(current, total) {
-        progressContainer.classList.remove('hidden');
-        updateProgress(current, total);
-    }
-    
-    // Hide progress bar
-    function hideProgress() {
-        progressContainer.classList.add('hidden');
-    }
-    
-    // Update progress bar
-    function updateProgress(current, total) {
-        const percentage = Math.round((current / total) * 100);
-        progressFill.style.width = `${percentage}%`;
-        progressCount.textContent = `${current}/${total}`;
-    }
-    
-    // UI Helper Functions
-    function showStatus(message, type = 'normal') {
-        statusMessage.className = ''; // Reset classes
 
-        if (type === 'success-html') {
-            statusMessage.innerHTML = message;
-            statusMessage.classList.add('success-html');
-        } else {
-            statusMessage.textContent = message;
-            if (type === 'error') {
-                statusMessage.classList.add('error');
-            } else if (type === 'success') {
-                statusMessage.classList.add('success');
-            }
-        }
-    }
-    
-    function showLoading(isLoading) {
-        if (isLoading) {
-            loadingIndicator.classList.remove('hidden');
-            extractButton.disabled = true;
-        } else {
-            loadingIndicator.classList.add('hidden');
-            extractButton.disabled = false;
-        }
-    }
-    
-    function resetUI() {
-        extractedUrlsTextarea.value = '';
-        urlCountDisplay.textContent = '0 URLs found';
-        copyButton.disabled = true;
-        resultsOverview.classList.add('hidden');
-        sitesStatusSection.classList.add('hidden');
-        urlsSection.classList.add('hidden');
-        autoSaveSection.classList.add('hidden');
-        
-        // Clear containers
-        allSitesContainer.innerHTML = '';
-        successfulSitesContainer.innerHTML = '';
-        failedSitesContainer.innerHTML = '';
-        
-        // Reset tab state
-        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.status-tab-content').forEach(content => content.classList.remove('active'));
-        document.getElementById('allSitesTab').classList.add('active');
-        document.getElementById('allSitesContent').classList.add('active');
-    }
-    
     function displayUrls(urls) {
         extractedUrlsTextarea.value = urls.join('\n');
-        urlCountDisplay.textContent = `${urls.length} URLs found`;
+        urlCountDisplay.textContent = `${urls.length} URLs`;
         urlsSection.classList.remove('hidden');
-    }
-    
-    function copyUrls() {
-        extractedUrlsTextarea.select();
-        document.execCommand('copy');
-        
-        // Provide feedback that URLs were copied
-        const originalText = copyButton.textContent;
-        copyButton.textContent = 'Copied!';
-        
-        setTimeout(() => {
-            copyButton.textContent = originalText;
-        }, 2000);
+        copyUrlsButton.disabled = false;
     }
 
-    // LocalStorage functions
+    function copyUrls() {
+        if (!extractedUrlsTextarea.value) return;
+        navigator.clipboard.writeText(extractedUrlsTextarea.value);
+        showToast('All URLs copied to clipboard!');
+    }
+
+    // --- Data Persistence ---
     function saveData() {
-        try {
-            localStorage.setItem(STORAGE_KEYS.SITE_URLS, siteUrlsTextarea.value);
-            localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
-            localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked.toString());
-            localStorage.setItem(STORAGE_KEYS.AUTO_SAVE_ID, autoSaveId.value);
-            localStorage.setItem(STORAGE_KEYS.ENABLE_AUTO_SAVE, enableAutoSaveCheckbox.checked.toString());
-            localStorage.setItem(STORAGE_KEYS.SAVE_URL_TO_FILE, saveUrlToFileCheckbox.checked.toString());
-        } catch (error) {
-            console.warn('Failed to save data to localStorage:', error);
-        }
+        autoSaveIndicator.textContent = 'Saving...';
+        
+        localStorage.setItem(STORAGE_KEYS.SITE_URLS, siteUrlsTextarea.value);
+        localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
+        localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked);
+        localStorage.setItem(STORAGE_KEYS.AUTO_SAVE_ID, autoSaveIdInput.value);
+        localStorage.setItem(STORAGE_KEYS.ENABLE_AUTO_SAVE, enableAutoSaveCheckbox.checked);
+        localStorage.setItem(STORAGE_KEYS.SAVE_URL_TO_FILE, saveUrlToFileCheckbox.checked);
+        
+        setTimeout(() => { autoSaveIndicator.textContent = '💾 Settings saved'; }, 500);
     }
 
     function loadSavedData() {
-        try {
-            // Load site URLs
-            const savedUrls = localStorage.getItem(STORAGE_KEYS.SITE_URLS);
-            if (savedUrls) {
-                siteUrlsTextarea.value = savedUrls;
-            }
-
-            // Load URL limit
-            const savedLimit = localStorage.getItem(STORAGE_KEYS.URL_LIMIT);
-            if (savedLimit) {
-                urlLimitInput.value = savedLimit;
-            }
-
-            // Load check validity setting
-            const savedCheckValidity = localStorage.getItem(STORAGE_KEYS.CHECK_VALIDITY);
-            if (savedCheckValidity !== null) {
-                checkValidityCheckbox.checked = savedCheckValidity === 'true';
-            }
-
-            // Load auto-save ID
-            const savedAutoSaveId = localStorage.getItem(STORAGE_KEYS.AUTO_SAVE_ID);
-            if (savedAutoSaveId) {
-                autoSaveId.value = savedAutoSaveId;
-            }
-
-            // Load enable auto-save setting
-            const savedEnableAutoSave = localStorage.getItem(STORAGE_KEYS.ENABLE_AUTO_SAVE);
-            if (savedEnableAutoSave !== null) {
-                enableAutoSaveCheckbox.checked = savedEnableAutoSave === 'true';
-            }
-            
-            // Load save URL to file setting
-            const savedSaveUrlToFile = localStorage.getItem(STORAGE_KEYS.SAVE_URL_TO_FILE);
-            if (savedSaveUrlToFile !== null) {
-                saveUrlToFileCheckbox.checked = savedSaveUrlToFile === 'true';
-            }
-            
-            
-            // Update UI based on checkbox state
-            onSaveUrlToFileToggle();
-        } catch (error) {
-            console.warn('Failed to load data from localStorage:', error);
-        }
+        siteUrlsTextarea.value = localStorage.getItem(STORAGE_KEYS.SITE_URLS) || '';
+        urlLimitInput.value = localStorage.getItem(STORAGE_KEYS.URL_LIMIT) || '10';
+        checkValidityCheckbox.checked = localStorage.getItem(STORAGE_KEYS.CHECK_VALIDITY) === 'true';
+        autoSaveIdInput.value = localStorage.getItem(STORAGE_KEYS.AUTO_SAVE_ID) || '';
+        enableAutoSaveCheckbox.checked = localStorage.getItem(STORAGE_KEYS.ENABLE_AUTO_SAVE) !== 'false';
+        saveUrlToFileCheckbox.checked = localStorage.getItem(STORAGE_KEYS.SAVE_URL_TO_FILE) === 'true';
+        onSaveUrlToFileToggle();
+        autoSaveIndicator.textContent = '💾 Settings loaded';
     }
 
-    // Clear saved data function
     function clearSavedData() {
-        if (confirm('Are you sure you want to clear all saved data? This will remove all saved URLs and settings.')) {
-            try {
-                localStorage.removeItem(STORAGE_KEYS.SITE_URLS);
-                localStorage.removeItem(STORAGE_KEYS.URL_LIMIT);
-                localStorage.removeItem(STORAGE_KEYS.CHECK_VALIDITY);
-                localStorage.removeItem(STORAGE_KEYS.AUTO_SAVE_ID);
-                
-                // Reset form to defaults
-                siteUrlsTextarea.value = '';
-                urlLimitInput.value = '5';
-                checkValidityCheckbox.checked = false;
-                autoSaveId.value = '';
-                
-                showStatus('Saved data cleared successfully', 'success');
-            } catch (error) {
-                console.warn('Failed to clear data from localStorage:', error);
-                showStatus('Failed to clear saved data', 'error');
-            }
-        }
+        if (!confirm('Are you sure you want to clear all saved settings and input?')) return;
+        Object.values(STORAGE_KEYS).forEach(key => {
+            if (!key.includes('AUTH')) localStorage.removeItem(key);
+        });
+        loadSavedData();
+        showStatus('Saved data cleared.', 'success');
     }
 
-    // Debounce function to limit how often saveData is called
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    // Auto-save sitemap function
-    async function autoSaveSitemap(urlsArray, extractionResult) {
-        if (!isAuthenticated || !currentPassword) {
-            console.log('No authentication, skipping auto-save');
-            return;
-        }
-
+    // --- Sitemap & File Saving ---
+    async function autoSaveSitemap(extractionResult, siteUrls) {
+        const customId = autoSaveIdInput.value.trim() || `autosave-${Date.now()}`;
         try {
-            // Get auto-save ID or generate one starting from 100
-            let sitemapId = autoSaveId.value.trim();
-            
-            if (!sitemapId) {
-                // Generate auto ID starting from 100
-                sitemapId = await getNextAvailableId();
-            }
-
-            // Validate ID format (letters, numbers, and hyphens)
-            if (!/^[a-zA-Z0-9-]+$/.test(sitemapId)) {
-                console.log('Invalid auto-save ID format, skipping auto-save');
-                return;
-            }
-
-            const payload = {
-                urls: urlsArray,
-                customId: sitemapId,
-                siteUrl: getSiteUrls().join(', ') || 'Auto-saved URLs'
-            };
-
+            const payload = { sites: siteUrls, customId, urls: extractionResult.allUrls };
             const response = await fetch('/api/sitemap/save-direct', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-password': currentPassword
-                },
+                headers: { 'Content-Type': 'application/json', 'x-auth-password': currentPassword },
                 body: JSON.stringify(payload)
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                
-                // Display auto-save success
-                const fullSitemapUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
-                autoSavedUrl.value = fullSitemapUrl;
-                autoSavedId.textContent = result.sitemapId;
-                
-                autoSaveSection.classList.remove('hidden');
-                
-                // Update auto-save ID for next time if it was auto-generated
-                if (!autoSaveId.value.trim()) {
-                    // Only increment if the generated ID is numeric
-                    if (/^\d+$/.test(result.sitemapId)) {
-                        autoSaveId.value = parseInt(result.sitemapId) + 1;
-                    }
-                    // For non-numeric IDs, leave the field empty for next auto-generation
-                }
-                
-                // Refresh saved sitemaps list
-                loadSavedSitemaps();
-                
-                console.log(`Auto-saved sitemap with ID: ${result.sitemapId}`);
-            } else {
-                console.log('Auto-save failed:', await response.text());
-            }
+            if (!response.ok) throw new Error((await response.json()).message);
+            const result = await response.json();
             
+            autoSavedId.textContent = result.sitemapId;
+            const fullUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
+            autoSavedUrl.value = fullUrl;
+            autoSaveSection.classList.remove('hidden');
+            showStatus(`Auto-saved to sitemap ID: ${result.sitemapId}`, 'success');
+            if (managerSection.classList.contains('active')) loadSavedSitemaps();
         } catch (error) {
-            console.log('Auto-save error:', error.message);
+            showStatus(`Auto-save failed: ${error.message}`, 'error');
         }
     }
 
-    // Get next available ID starting from 100
-    async function getNextAvailableId() {
-        try {
-            const response = await fetch('/api/sitemaps', {
-                headers: {
-                    'x-auth-password': currentPassword
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const existingIds = data.sitemaps.map(s => parseInt(s.id)).filter(id => !isNaN(id) && id >= 100);
-                
-                if (existingIds.length === 0) {
-                    return '100';
-                }
-                
-                existingIds.sort((a, b) => a - b);
-                let nextId = 100;
-                
-                for (const id of existingIds) {
-                    if (id === nextId) {
-                        nextId++;
-                    } else {
-                        break;
-                    }
-                }
-                
-                return nextId.toString();
-            }
-        } catch (error) {
-            console.log('Error getting next ID:', error);
-        }
-        
-        return '100'; // Default fallback
-    }
-
-    // Auto-saved URL functions
     function copyAutoSavedUrl() {
-        autoSavedUrl.select();
-        document.execCommand('copy');
-        
-        const originalText = copyAutoSavedUrlButton.textContent;
-        copyAutoSavedUrlButton.textContent = '✅';
-        
-        setTimeout(() => {
-            copyAutoSavedUrlButton.textContent = originalText;
-        }, 2000);
+        navigator.clipboard.writeText(autoSavedUrl.value);
+        showToast('Sitemap URL copied!');
     }
 
     function openAutoSavedUrl() {
-        const url = autoSavedUrl.value;
-        if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        }
-    }
-
-    function copySitemapUrl() {
-        sitemapUrl.select();
-        document.execCommand('copy');
-        
-        const originalText = copySitemapUrlButton.innerHTML;
-        copySitemapUrlButton.innerHTML = '<span class="button-icon">✅</span>Copied!';
-        
-        setTimeout(() => {
-            copySitemapUrlButton.innerHTML = originalText;
-        }, 2000);
-    }
-
-    function openSitemapUrl() {
-        const url = sitemapUrl.value;
-        if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        }
+        window.open(autoSavedUrl.value, '_blank');
     }
 
     async function loadSavedSitemaps() {
-        if (!isAuthenticated || !currentPassword) {
-            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Authentication required</div>';
-            return;
-        }
-        
+        savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Loading...</div>';
         try {
-            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Loading saved sitemaps...</div>';
-            
-            const response = await fetch('/api/sitemaps', {
-                headers: {
-                    'x-auth-password': currentPassword
-                }
-            });
-            
-            if (!response.ok) {
-                if (response.status === 401) {
-                    throw new Error('Authentication expired. Please logout and login again.');
-                }
-                throw new Error('Failed to load sitemaps');
-            }
-            
-            const data = await response.json();
-            displaySavedSitemaps(data.sitemaps);
-            
+            const response = await fetch('/api/sitemaps', { headers: { 'x-auth-password': currentPassword } });
+            if (!response.ok) throw new Error('Failed to load sitemaps');
+            const { sitemaps } = await response.json();
+            displaySavedSitemaps(sitemaps);
         } catch (error) {
-            console.error('Error loading saved sitemaps:', error);
-            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">Failed to load saved sitemaps: ' + error.message + '</div>';
+            savedSitemapsContainer.innerHTML = `<div class="error">${error.message}</div>`;
         }
     }
 
     function displaySavedSitemaps(sitemaps) {
-        if (sitemaps.length === 0) {
-            savedSitemapsContainer.innerHTML = '<div class="loading-sitemaps">No saved sitemaps found</div>';
+        if (!sitemaps || sitemaps.length === 0) {
+            savedSitemapsContainer.innerHTML = '<div class="no-sitemaps">No sitemaps saved yet.</div>';
             return;
         }
-
         savedSitemapsContainer.innerHTML = '';
-        
         sitemaps.forEach(sitemap => {
-            const sitemapElement = createSitemapItem(sitemap);
-            savedSitemapsContainer.appendChild(sitemapElement);
+            const card = document.createElement('div');
+            card.className = 'sitemap-card';
+            card.innerHTML = `
+                <div class="sitemap-details">
+                    <div class="sitemap-id">${sitemap.id}</div>
+                    <div class="sitemap-meta">
+                        <span>🔗 ${sitemap.urlCount} URLs</span>
+                        <span>📅 Created: ${new Date(sitemap.createdAt).toLocaleDateString()}</span>
+                    </div>
+                </div>
+                <div class="sitemap-actions">
+                    <button class="mini-button" title="Copy Link" data-url="/sitemap/${sitemap.id}">📋</button>
+                    <button class="mini-button" title="Open Sitemap" data-url="/sitemap/${sitemap.id}">🔗</button>
+                    <button class="mini-button delete-button" title="Delete" data-id="${sitemap.id}">🗑️</button>
+                </div>`;
+            savedSitemapsContainer.appendChild(card);
+        });
+
+        savedSitemapsContainer.querySelectorAll('.sitemap-actions .mini-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const target = e.currentTarget;
+                if (target.classList.contains('delete-button')) {
+                    deleteSitemap(target.dataset.id);
+                } else {
+                    const url = `${window.location.origin}${target.dataset.url}.xml`;
+                    if (target.title === 'Copy Link') {
+                        navigator.clipboard.writeText(url);
+                        showToast('Sitemap URL copied!');
+                    } else {
+                        window.open(url, '_blank');
+                    }
+                }
+            });
         });
     }
 
-    function createSitemapItem(sitemap) {
-        const sitemapItem = document.createElement('div');
-        sitemapItem.className = 'sitemap-item';
-        
-        const createdDate = new Date(sitemap.createdAt).toLocaleDateString('id-ID');
-        const updatedDate = new Date(sitemap.updatedAt).toLocaleDateString('id-ID');
-        const fullSitemapUrl = `${window.location.origin}${sitemap.sitemapUrl}`;
-        
-        sitemapItem.innerHTML = `
-            <div class="sitemap-item-header">
-                <div class="sitemap-id">${sitemap.id}</div>
-                <div class="sitemap-date">Updated: ${updatedDate}</div>
-            </div>
-            <div class="sitemap-details">
-                <div class="detail-item">
-                    <span class="detail-icon">🌐</span>
-                    <span>Sites: ${sitemap.siteUrl}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-icon">🔗</span>
-                    <span>URLs: ${sitemap.urlCount}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-icon">📅</span>
-                    <span>Created: ${createdDate}</span>
-                </div>
-            </div>
-            <div class="sitemap-actions-row">
-                <a href="${sitemap.sitemapUrl}" target="_blank" class="view-sitemap-button">
-                    🔍 View Sitemap
-                </a>
-                <button class="copy-sitemap-url" onclick="copySitemapUrlToClipboard('${fullSitemapUrl}')">
-                    📋 Copy URL
-                </button>
-                <button class="danger-button" onclick="deleteSitemapFromMain('${sitemap.id}')">
-                    🗑️ Delete
-                </button>
-            </div>
-        `;
-        
-        return sitemapItem;
-    }
-
-    // Delete sitemap function
-    window.deleteSitemapFromMain = async function(sitemapId) {
-        if (!confirm(`Are you sure you want to delete sitemap '${sitemapId}'? This action cannot be undone.`)) {
-            return;
-        }
-        
+    async function deleteSitemap(sitemapId) {
+        if (!confirm(`Are you sure you want to delete sitemap "${sitemapId}"?`)) return;
         try {
             const response = await fetch(`/api/sitemap/${sitemapId}`, {
                 method: 'DELETE',
-                headers: {
-                    'x-auth-password': currentPassword
-                }
+                headers: { 'x-auth-password': currentPassword }
             });
-            
-            if (response.ok) {
-                const result = await response.json();
-                showStatus(`Sitemap '${sitemapId}' deleted successfully!`, 'success');
-                loadSavedSitemaps(); // Refresh the list
-            } else {
-                const error = await response.json();
-                showStatus('Error deleting sitemap: ' + error.message, 'error');
-            }
+            if (!response.ok) throw new Error((await response.json()).message);
+            showStatus(`Sitemap "${sitemapId}" deleted.`, 'success');
+            loadSavedSitemaps();
         } catch (error) {
-            showStatus('Network error: ' + error.message, 'error');
+            showStatus(`Error deleting sitemap: ${error.message}`, 'error');
         }
-    };
+    }
 
-    // Global function for copying sitemap URLs
-    window.copySitemapUrlToClipboard = function(url) {
-        navigator.clipboard.writeText(url).then(() => {
-            // Find the button that was clicked and provide feedback
-            event.target.textContent = 'Copied!';
-            setTimeout(() => {
-                event.target.textContent = '📋 Copy URL';
-            }, 2000);
-        }).catch(() => {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = url;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            event.target.textContent = 'Copied!';
-            setTimeout(() => {
-                event.target.textContent = '📋 Copy URL';
-            }, 2000);
-        });
-    };
+    async function onSaveUrlToFileToggle() {
+        const isChecked = saveUrlToFileCheckbox.checked;
+        folderSelectContainer.classList.toggle('hidden', !isChecked);
+        folderSelect.disabled = !isChecked;
+        if (isChecked && folderSelect.options.length <= 1) {
+            await loadAvailableFolders();
+        }
+    }
 
-    // URL Save to File Functions
     async function loadAvailableFolders() {
         try {
             const response = await fetch('/api/folders');
-            if (!response.ok) {
-                throw new Error('Failed to load folders');
-            }
-            
-            const data = await response.json();
-            populateFolderSelect(data.folders);
+            if (!response.ok) throw new Error('Could not load folders.');
+            const { folders } = await response.json();
+            populateFolderSelect(folders);
         } catch (error) {
-            console.error('Error loading folders:', error);
-            showStatus('Failed to load available folders', 'error');
+            showStatus(error.message, 'error');
         }
     }
 
     function populateFolderSelect(folders) {
-        // Clear existing options except the first one
         folderSelect.innerHTML = '<option value="">Select folder...</option>';
-        
-        // Add folder options
         folders.forEach(folder => {
             const option = document.createElement('option');
             option.value = folder;
             option.textContent = folder;
             folderSelect.appendChild(option);
         });
-        
-        // Don't restore saved selection - keep it fresh
-    }
-
-    function onSaveUrlToFileToggle() {
-        const isChecked = saveUrlToFileCheckbox.checked;
-        
-        if (isChecked) {
-            folderSelect.classList.remove('hidden');
-            folderSelect.disabled = false;
-            loadAvailableFolders(); // Load folders when enabled
-        } else {
-            folderSelect.classList.add('hidden');
-            folderSelect.disabled = true;
-        }
-        
-        saveData(); // Save the checkbox state
     }
 
     async function saveUrlsToFile(urls, folder) {
-        // Validate folder selection
-        if (!folder || folder.trim() === '') {
-            showStatus('⚠️ Please select a folder to save URLs', 'error');
-            return false; // Did not display final status
-        }
-        
         try {
-            showStatus('💾 Saving URLs to file...', 'normal');
-            
             const response = await fetch('/api/save-urls', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    urls: urls,
-                    folder: folder
-                })
+                headers: { 'Content-Type': 'application/json', 'x-auth-password': currentPassword },
+                body: JSON.stringify({ urls, folder })
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to save URLs to file');
-            }
-            
-            const result = await response.json();
-            
-            // Enhanced success message with more details
-            const successMessage = `
-                <div class="success-summary">
-                    <h4>✅ URLs Saved Successfully!</h4>
-                    <p><strong>📁 Folder:</strong> ${result.folder}</p>
-                    <p><strong>📄 File:</strong> ${result.filename} (${result.urlCount} URLs)</p>
-                    <p><strong>📊 Info:</strong> ${result.infoFile}</p>
-                    <p><strong>⏰ Time:</strong> ${result.timestamp}</p>
-                </div>
-            `;
-            
-            showStatus(successMessage, 'success-html');
-            return true; // Displayed final status
-            
+            if (!response.ok) throw new Error((await response.json()).message);
+            showStatus((await response.json()).message, 'success');
         } catch (error) {
-            console.error('Error saving URLs to file:', error);
-            showStatus(`❌ Failed to save URLs to file: ${error.message}`, 'error');
-            return true; // Displayed final status (error)
+            showStatus(`Failed to save URLs to file: ${error.message}`, 'error');
         }
     }
 
-    // Load folders and saved data when page loads
-    loadSavedData();
-    if (saveUrlToFileCheckbox.checked) {
-        loadAvailableFolders();
+    // --- Utilities ---
+    let toastTimeout;
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => { clearTimeout(timeout); func(...args); };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 });

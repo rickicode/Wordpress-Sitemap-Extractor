@@ -8,206 +8,161 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Authentication Section -->
-        <div class="auth-overlay" id="authOverlay">
-            <div class="auth-modal">
-                <div class="auth-header">
-                    <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
-                    <h2>🔐 Authentication Required</h2>
-                    <p>Enter your password to access the XML Extractor</p>
-                </div>
-                <div class="auth-form">
-                    <input type="password" id="globalAuthPassword" placeholder="Enter access password">
-                    <button id="globalAuthButton" class="auth-button">🚀 Access Application</button>
-                </div>
-                <div id="globalAuthStatus" class="auth-status"></div>
+    <!-- Authentication Section -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-modal glass-card">
+            <div class="auth-header">
+                <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
+                <h2>Authentication Required</h2>
+                <p>Enter your password to access the extractor.</p>
             </div>
+            <div class="auth-form">
+                <input type="password" id="globalAuthPassword" placeholder="Enter access password">
+                <button id="globalAuthButton" class="auth-button">Access Application</button>
+            </div>
+            <div id="globalAuthStatus" class="auth-status"></div>
         </div>
+    </div>
 
-        <!-- Main Application -->
-        <div class="main-app hidden" id="mainApp">
-            <header class="header">
+    <!-- Main Application -->
+    <div class="main-app hidden" id="mainApp">
+        <div class="container">
+            <header class="header glass-card">
                 <div class="header-content">
                     <div class="header-left">
                         <img src="/diamond.svg" alt="Diamond Logo" class="logo">
-                        <h1>WordPress XML Extractor</h1>
+                        <h1>WP Sitemap Extractor</h1>
                     </div>
                     <nav class="header-nav">
-                        <button class="nav-button active" id="homeNav">🏠 Home</button>
-                        <button class="nav-button" id="manageNav">🔧 Manager</button>
-                        <button class="nav-button logout" id="logoutButton">🚪 Logout</button>
+                        <button class="nav-button active" id="homeNav">Home</button>
+                        <button class="nav-button" id="manageNav">Manager</button>
+                        <button class="nav-button logout" id="logoutButton">Logout</button>
                     </nav>
                 </div>
             </header>
-        
-        <div class="input-section">
-            <label for="siteUrls">Enter WordPress Site URLs (one per line):</label>
-            <textarea id="siteUrls" placeholder="https://example1.com&#10;https://example2.com&#10;https://example3.com" rows="5"></textarea>
-            <div class="auto-save-info">💾 Your data is automatically saved as you type</div>
-            
-            <div class="info-box">
-                <p><strong>🔍 Smart Extraction:</strong> The app will automatically try RSS/Atom feeds first, then fallback to sitemaps if no feed is available.</p>
-            </div>
-            
-            <div class="extraction-controls">
-                <div class="input-row">
-                    <input type="number" id="urlLimit" min="1" max="100" value="5" class="compact-input" placeholder="🔢 URL limit per site (default: 5)">
-                    <input type="text" id="autoSaveId" placeholder="💾 Auto-save ID (e.g., my-sitemap-1, leave empty for auto)" class="compact-input" pattern="[a-zA-Z0-9-]+" maxlength="50">
-                    <label class="compact-checkbox" for="enableAutoSave">
-                        <input type="checkbox" id="enableAutoSave" checked>
-                        <span class="checkmark">✓</span>
-                        <span class="checkbox-text">Save Sitemap</span>
-                    </label>
-                    <label class="compact-checkbox">
-                        <input type="checkbox" id="checkValidity">
-                        <span class="checkmark">✓</span>
-                        <span class="checkbox-text">Validate URLs</span>
-                    </label>
-                </div>
-                
-                <div class="url-save-controls">
-                    <label class="compact-checkbox" for="saveUrlToFile">
-                        <input type="checkbox" id="saveUrlToFile">
-                        <span class="checkmark">✓</span>
-                        <span class="checkbox-text">💾 Save URLs to File</span>
-                    </label>
-                    <select id="folderSelect" class="folder-select hidden" disabled>
-                        <option value="">Select folder...</option>
-                    </select>
-                </div>
-                
-                <div class="auto-save-info">💾 All settings including auto-save ID are automatically saved as you type</div>
-                
-                <div class="action-row">
-                    <button id="extract" class="extract-btn">
-                        🚀 Extract URLs
-                    </button>
-                    <button id="clearData" class="clear-btn" title="Clear saved data">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="status-section">
-            <div id="statusMessage"></div>
-            <div id="loadingIndicator" class="hidden">
-                <div class="spinner"></div>
-                <span>Extracting URLs...</span>
-            </div>
-        </div>
-        
-        <div class="progress-container hidden" id="progressContainer">
-            <div class="progress-label">Processing sites: <span id="progressCount">0/0</span></div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-        </div>
-        
-        <!-- Results Overview Section -->
-        <div class="results-overview hidden" id="resultsOverview">
-            <div class="overview-cards">
-                <div class="overview-card success-card">
-                    <div class="card-icon">✅</div>
-                    <div class="card-content">
-                        <div class="card-title">Successful Sites</div>
-                        <div class="card-value" id="successCount">0</div>
-                    </div>
-                </div>
-                <div class="overview-card failed-card">
-                    <div class="card-icon">❌</div>
-                    <div class="card-content">
-                        <div class="card-title">Failed Sites</div>
-                        <div class="card-value" id="failedCount">0</div>
-                    </div>
-                </div>
-                <div class="overview-card urls-card">
-                    <div class="card-icon">🔗</div>
-                    <div class="card-content">
-                        <div class="card-title">Total URLs</div>
-                        <div class="card-value" id="totalUrlsCount">0</div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
             <!-- Home Section -->
             <div class="content-section active" id="homeSection">
-                <!-- Auto-save Status Section -->
+                <div class="input-section glass-card">
+                    <label for="siteUrls">Enter WordPress Site URLs (one per line):</label>
+                    <textarea id="siteUrls" placeholder="https://example1.com&#10;https://example2.com" rows="5"></textarea>
+                    <div class="auto-save-info" id="autoSaveIndicator"></div>
+                    
+                    <div class="info-box">
+                        <p><strong>Smart Extraction:</strong> The app automatically tries RSS/Atom feeds first, then falls back to sitemaps.</p>
+                    </div>
+                    
+                    <div class="extraction-controls">
+                        <div class="controls-group">
+                            <div class="control-item">
+                                <label for="urlLimit">URL Limit / Site</label>
+                                <input type="number" id="urlLimit" min="1" max="1000" value="10" class="compact-input">
+                            </div>
+                            <div class="control-item">
+                                <label for="autoSaveId">Sitemap Save ID</label>
+                                <input type="text" id="autoSaveId" placeholder="e.g., my-sitemap-1" class="compact-input" pattern="[a-zA-Z0-9-]+" maxlength="50">
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                             <label class="compact-checkbox" for="enableAutoSave">
+                                <input type="checkbox" id="enableAutoSave" checked>
+                                <span class="checkmark">✓</span>
+                                <span class="checkbox-text">Auto-Save Sitemap</span>
+                            </label>
+                            <label class="compact-checkbox" for="checkValidity">
+                                <input type="checkbox" id="checkValidity">
+                                <span class="checkmark">✓</span>
+                                <span class="checkbox-text">Validate URLs (404 Check)</span>
+                            </label>
+                            <label class="compact-checkbox" for="saveUrlToFile">
+                                <input type="checkbox" id="saveUrlToFile">
+                                <span class="checkmark">✓</span>
+                                <span class="checkbox-text">Save URLs to File</span>
+                            </label>
+                        </div>
+                         <div class="control-item hidden" id="folderSelectContainer">
+                            <label for="folderSelect">Target Folder</label>
+                            <select id="folderSelect" class="folder-select compact-input" disabled>
+                                <option value="">Select folder...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="action-row">
+                        <button id="extract" class="extract-btn">🚀 Extract URLs</button>
+                        <button id="clearData" class="clear-btn" title="Clear saved settings">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div id="statusMessage"></div>
+                    <div id="loadingIndicator" class="hidden">
+                        <div class="spinner"></div>
+                        <span>Extracting URLs...</span>
+                    </div>
+                </div>
+
                 <div class="auto-save-section hidden" id="autoSaveSection">
-                    <div class="auto-save-result">
+                    <div class="auto-save-result glass-card">
                         <span class="result-text">✅ Auto-saved to Sitemap ID: <strong id="autoSavedId">-</strong></span>
                         <div class="result-actions">
                             <input type="text" id="autoSavedUrl" readonly>
-                            <button id="copyAutoSavedUrl" class="mini-button">📋</button>
-                            <button id="openAutoSavedUrl" class="mini-button">🔗</button>
+                            <button id="copyAutoSavedUrl" class="mini-button" title="Copy URL">📋</button>
+                            <button id="openAutoSavedUrl" class="mini-button" title="Open URL">🔗</button>
                         </div>
                     </div>
                 </div>
 
-        <div class="result-section">
-            <!-- Extracted URLs Section -->
-            <div class="urls-section hidden" id="urlsSection">
-                <div class="urls-header">
-                    <div class="urls-title">
-                        <span class="title-icon">🔗</span>
-                        <h2>Extracted URLs</h2>
-                        <span id="urlCount" class="count-badge">0 URLs</span>
-                    </div>
-                    <div class="urls-actions">
-                        <button id="copyUrls" disabled class="action-btn copy-btn">
-                            <span class="btn-icon">📋</span>
-                            <span class="btn-text">Copy All</span>
-                        </button>
+                <div class="results-overview hidden" id="resultsOverview">
+                    <div class="overview-cards">
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">✅</div>
+                            <div class="card-content">
+                                <div class="card-title">Successful Sites</div>
+                                <div class="card-value" id="successCount">0</div>
+                            </div>
+                        </div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">❌</div>
+                            <div class="card-content">
+                                <div class="card-title">Failed Sites</div>
+                                <div class="card-value" id="failedCount">0</div>
+                            </div>
+                        </div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">🔗</div>
+                            <div class="card-content">
+                                <div class="card-title">Total URLs</div>
+                                <div class="card-value" id="totalUrlsCount">0</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="urls-container">
-                    <div class="urls-wrapper">
-                        <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-                <!-- Sites Status Section -->
-                <div class="sites-status-section hidden" id="sitesStatusSection">
-                    <div class="status-tabs">
-                        <button class="status-tab active" id="allSitesTab" onclick="showStatusTab('all')">
-                            📊 All Sites
-                        </button>
-                        <button class="status-tab" id="successfulSitesTab" onclick="showStatusTab('successful')">
-                            ✅ Successful
-                        </button>
-                        <button class="status-tab" id="failedSitesTab" onclick="showStatusTab('failed')">
-                            ❌ Failed
-                        </button>
-                    </div>
-                    
-                    <div class="status-content">
-                        <div id="allSitesContent" class="status-tab-content active">
-                            <div id="allSitesContainer"></div>
+                <div class="urls-section hidden glass-card" id="urlsSection">
+                    <div class="urls-header">
+                        <div class="urls-title">
+                            <h2>Extracted URLs</h2>
+                            <span id="urlCount" class="count-badge">0 URLs</span>
                         </div>
-                        <div id="successfulSitesContent" class="status-tab-content">
-                            <div id="successfulSitesContainer"></div>
-                        </div>
-                        <div id="failedSitesContent" class="status-tab-content">
-                            <div id="failedSitesContainer"></div>
+                        <div class="urls-actions">
+                            <button id="copyUrls" disabled class="action-btn copy-btn">📋 Copy All</button>
                         </div>
                     </div>
+                    <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
                 </div>
             </div>
 
             <!-- Manager Section -->
             <div class="content-section" id="managerSection">
                 <div class="manager-header">
-                    <h2>🔧 Sitemap Manager</h2>
+                    <h2>Sitemap Manager</h2>
                     <p>Manage all your saved sitemap collections</p>
                 </div>
                 
-                <div class="saved-sitemaps-section">
+                <div class="saved-sitemaps-section glass-card">
                     <div class="section-header">
-                        <h2>📚 Saved Sitemaps</h2>
+                        <h2>Saved Sitemaps</h2>
                         <button id="refreshSitemaps" class="refresh-button">🔄 Refresh</button>
                     </div>
                     <div class="saved-sitemaps-container" id="savedSitemapsContainer">
@@ -219,5 +174,8 @@
     </div>
 
     <script src="/app.js"></script>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 </body>
 </html>
