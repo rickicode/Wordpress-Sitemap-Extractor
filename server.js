@@ -1154,6 +1154,94 @@ function escapeXml(unsafe) {
     });
 }
 
+// API endpoint to get available folders in data directory
+app.get('/api/folders', (req, res) => {
+    const fs = require('fs');
+    const dataPath = path.join(__dirname, 'data');
+    
+    try {
+        // Ensure data directory exists
+        if (!fs.existsSync(dataPath)) {
+            fs.mkdirSync(dataPath, { recursive: true });
+        }
+        
+        // Read folders from data directory
+        const items = fs.readdirSync(dataPath, { withFileTypes: true });
+        const folders = items
+            .filter(item => item.isDirectory())
+            .map(item => item.name)
+            .sort();
+        
+        res.json({ folders });
+    } catch (error) {
+        console.error('Error reading data folders:', error);
+        res.status(500).json({ error: 'Failed to read data folders' });
+    }
+});
+
+// API endpoint to save URLs to a specific folder
+app.post('/api/save-urls', (req, res) => {
+    const fs = require('fs');
+    const { urls, folder } = req.body;
+    
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: 'URLs array is required' });
+    }
+    
+    if (!folder || typeof folder !== 'string' || folder.trim() === '') {
+        return res.status(400).json({ error: 'Please select a folder to save URLs' });
+    }
+    
+    // Sanitize folder name to prevent path traversal
+    const sanitizedFolder = folder.replace(/[^a-zA-Z0-9-_]/g, '');
+    if (sanitizedFolder !== folder) {
+        return res.status(400).json({ error: 'Invalid folder name. Only alphanumeric characters, hyphens, and underscores are allowed.' });
+    }
+    
+    const folderPath = path.join(__dirname, 'data', sanitizedFolder);
+    const urlFilePath = path.join(folderPath, 'URL_LIST.txt');
+    const infoFilePath = path.join(folderPath, 'INFO.txt');
+    
+    try {
+        // Ensure folder exists
+        if (!fs.existsSync(folderPath)) {
+            fs.mkdirSync(folderPath, { recursive: true });
+        }
+        
+        // Prepare content for URL file (clean URLs only)
+        const urlContent = urls.join('\n') + '\n';
+        
+        // Prepare content for info file
+        const timestamp = new Date().toISOString();
+        const infoContent = `URL List Information
+====================
+Generated on: ${timestamp}
+Total URLs: ${urls.length}
+Folder: ${sanitizedFolder}
+Last updated: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
+`;
+        
+        // Write URLs to URL_LIST.txt (clean URLs only)
+        fs.writeFileSync(urlFilePath, urlContent, 'utf8');
+        
+        // Write metadata to INFO.txt
+        fs.writeFileSync(infoFilePath, infoContent, 'utf8');
+        
+        res.json({
+            success: true,
+            message: `Successfully saved ${urls.length} URLs to ${sanitizedFolder}/URL_LIST.txt`,
+            folder: sanitizedFolder,
+            filename: 'URL_LIST.txt',
+            infoFile: 'INFO.txt',
+            urlCount: urls.length,
+            timestamp: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+        });
+    } catch (error) {
+        console.error('Error saving URLs to file:', error);
+        res.status(500).json({ error: 'Failed to save URLs to file' });
+    }
+});
+
 // Serve the index.html file for all other routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

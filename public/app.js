@@ -46,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const openAutoSavedUrlButton = document.getElementById('openAutoSavedUrl');
     const savedSitemapsContainer = document.getElementById('savedSitemapsContainer');
     const refreshSitemapsButton = document.getElementById('refreshSitemaps');
+    
+    // URL Save Elements
+    const saveUrlToFileCheckbox = document.getElementById('saveUrlToFile');
+    const folderSelect = document.getElementById('folderSelect');
 
     // Global variables
     let currentPassword = '';
@@ -59,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
         AUTO_SAVE_ID: 'xmlExtractor_autoSaveId',
         ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave',
         AUTH_PASSWORD: 'xmlExtractor_authPassword',
-        AUTH_SESSION: 'xmlExtractor_authSession'
+        AUTH_SESSION: 'xmlExtractor_authSession',
+        SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile'
     };
 
     // Check authentication on page load
@@ -92,6 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
     urlLimitInput.addEventListener('change', saveData);
     checkValidityCheckbox.addEventListener('change', saveData);
     enableAutoSaveCheckbox.addEventListener('change', saveData);
+    
+    // URL Save Event Listeners
+    saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
 
     // Authentication Functions
     function checkAuthenticationStatus() {
@@ -220,6 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Validate folder selection if save to file is enabled
+        if (saveUrlToFileCheckbox.checked) {
+            if (!folderSelect.value || folderSelect.value.trim() === '') {
+                showStatus('⚠️ "Save URLs to File" is enabled but no folder is selected. Please select a folder or disable the feature.', 'error');
+                return;
+            }
+        }
+
         const urlLimit = parseInt(urlLimitInput.value) || 5;
         const checkValidity = checkValidityCheckbox.checked;
         
@@ -268,14 +284,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     await autoSaveSitemap(result.allUrls, result);
                 }
                 
-                // Create more detailed status message
-                let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
-                if (result.failedSites > 0) {
-                    statusMsg += ` from ${result.successfulSites} sites (${result.failedSites} sites failed)`;
-                } else {
-                    statusMsg += ` from ${result.successfulSites} sites`;
+                let statusDisplayedBySave = false;
+                // Save URLs to file if enabled
+                if (saveUrlToFileCheckbox.checked && folderSelect.value) {
+                    statusDisplayedBySave = await saveUrlsToFile(result.allUrls, folderSelect.value);
                 }
-                showStatus(statusMsg, 'success');
+                
+                // Only show the generic success message if a more specific one wasn't shown
+                if (!statusDisplayedBySave) {
+                    let statusMsg = `Successfully extracted ${result.allUrls.length} URLs`;
+                    if (result.failedSites > 0) {
+                        statusMsg += ` from ${result.successfulSites} sites (${result.failedSites} sites failed)`;
+                    } else {
+                        statusMsg += ` from ${result.successfulSites} sites`;
+                    }
+                    showStatus(statusMsg, 'success');
+                }
                 copyButton.disabled = false;
             } else {
                 if (result.failedSites === result.totalSites) {
@@ -487,13 +511,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // UI Helper Functions
     function showStatus(message, type = 'normal') {
-        statusMessage.textContent = message;
-        statusMessage.className = '';
-        
-        if (type === 'error') {
-            statusMessage.classList.add('error');
-        } else if (type === 'success') {
-            statusMessage.classList.add('success');
+        statusMessage.className = ''; // Reset classes
+
+        if (type === 'success-html') {
+            statusMessage.innerHTML = message;
+            statusMessage.classList.add('success-html');
+        } else {
+            statusMessage.textContent = message;
+            if (type === 'error') {
+                statusMessage.classList.add('error');
+            } else if (type === 'success') {
+                statusMessage.classList.add('success');
+            }
         }
     }
     
@@ -555,6 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked.toString());
             localStorage.setItem(STORAGE_KEYS.AUTO_SAVE_ID, autoSaveId.value);
             localStorage.setItem(STORAGE_KEYS.ENABLE_AUTO_SAVE, enableAutoSaveCheckbox.checked.toString());
+            localStorage.setItem(STORAGE_KEYS.SAVE_URL_TO_FILE, saveUrlToFileCheckbox.checked.toString());
         } catch (error) {
             console.warn('Failed to save data to localStorage:', error);
         }
@@ -591,6 +621,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedEnableAutoSave !== null) {
                 enableAutoSaveCheckbox.checked = savedEnableAutoSave === 'true';
             }
+            
+            // Load save URL to file setting
+            const savedSaveUrlToFile = localStorage.getItem(STORAGE_KEYS.SAVE_URL_TO_FILE);
+            if (savedSaveUrlToFile !== null) {
+                saveUrlToFileCheckbox.checked = savedSaveUrlToFile === 'true';
+            }
+            
+            
+            // Update UI based on checkbox state
+            onSaveUrlToFileToggle();
         } catch (error) {
             console.warn('Failed to load data from localStorage:', error);
         }
@@ -915,4 +955,105 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2000);
         });
     };
+
+    // URL Save to File Functions
+    async function loadAvailableFolders() {
+        try {
+            const response = await fetch('/api/folders');
+            if (!response.ok) {
+                throw new Error('Failed to load folders');
+            }
+            
+            const data = await response.json();
+            populateFolderSelect(data.folders);
+        } catch (error) {
+            console.error('Error loading folders:', error);
+            showStatus('Failed to load available folders', 'error');
+        }
+    }
+
+    function populateFolderSelect(folders) {
+        // Clear existing options except the first one
+        folderSelect.innerHTML = '<option value="">Select folder...</option>';
+        
+        // Add folder options
+        folders.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder;
+            option.textContent = folder;
+            folderSelect.appendChild(option);
+        });
+        
+        // Don't restore saved selection - keep it fresh
+    }
+
+    function onSaveUrlToFileToggle() {
+        const isChecked = saveUrlToFileCheckbox.checked;
+        
+        if (isChecked) {
+            folderSelect.classList.remove('hidden');
+            folderSelect.disabled = false;
+            loadAvailableFolders(); // Load folders when enabled
+        } else {
+            folderSelect.classList.add('hidden');
+            folderSelect.disabled = true;
+        }
+        
+        saveData(); // Save the checkbox state
+    }
+
+    async function saveUrlsToFile(urls, folder) {
+        // Validate folder selection
+        if (!folder || folder.trim() === '') {
+            showStatus('⚠️ Please select a folder to save URLs', 'error');
+            return false; // Did not display final status
+        }
+        
+        try {
+            showStatus('💾 Saving URLs to file...', 'normal');
+            
+            const response = await fetch('/api/save-urls', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    urls: urls,
+                    folder: folder
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save URLs to file');
+            }
+            
+            const result = await response.json();
+            
+            // Enhanced success message with more details
+            const successMessage = `
+                <div class="success-summary">
+                    <h4>✅ URLs Saved Successfully!</h4>
+                    <p><strong>📁 Folder:</strong> ${result.folder}</p>
+                    <p><strong>📄 File:</strong> ${result.filename} (${result.urlCount} URLs)</p>
+                    <p><strong>📊 Info:</strong> ${result.infoFile}</p>
+                    <p><strong>⏰ Time:</strong> ${result.timestamp}</p>
+                </div>
+            `;
+            
+            showStatus(successMessage, 'success-html');
+            return true; // Displayed final status
+            
+        } catch (error) {
+            console.error('Error saving URLs to file:', error);
+            showStatus(`❌ Failed to save URLs to file: ${error.message}`, 'error');
+            return true; // Displayed final status (error)
+        }
+    }
+
+    // Load folders and saved data when page loads
+    loadSavedData();
+    if (saveUrlToFileCheckbox.checked) {
+        loadAvailableFolders();
+    }
 });
