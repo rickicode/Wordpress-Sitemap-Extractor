@@ -1168,7 +1168,7 @@ app.get('/api/folders', (req, res) => {
         // Read folders from data directory
         const items = fs.readdirSync(dataPath, { withFileTypes: true });
         const folders = items
-            .filter(item => item.isDirectory())
+            .filter(item => item.isDirectory() && !item.name.startsWith('.'))
             .map(item => item.name)
             .sort();
         
