@@ -1179,6 +1179,31 @@ app.get('/api/folders', (req, res) => {
     }
 });
 
+// API endpoint to get the content of a URL_LIST.txt file
+app.get('/api/urls/:folder', requireAuth, (req, res) => {
+    const fs = require('fs');
+    const folderName = req.params.folder;
+
+    if (!folderName || typeof folderName !== 'string' || folderName.trim() === '') {
+        return res.status(400).json({ error: 'Invalid folder name' });
+    }
+
+    const filePath = path.join(__dirname, 'data', folderName, 'URL_LIST.txt');
+
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) {
+            if (err.code === 'ENOENT') {
+                return res.status(404).json({ error: 'URL list not found in this folder.' });
+            }
+            console.error('Error reading URL list file:', err);
+            return res.status(500).json({ error: 'Failed to read URL list.' });
+        }
+        
+        const urls = data.split('\n').filter(Boolean);
+        res.json({ folder: folderName, urls: urls, count: urls.length });
+    });
+});
+
 // API endpoint to save URLs to a specific folder
 app.post('/api/save-urls', (req, res) => {
     const fs = require('fs');

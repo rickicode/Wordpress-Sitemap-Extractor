@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved URL Viewer</title>
+    <link rel="icon" type="image/png" href="/diamond.png">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header glass-card">
+            <div class="header-content">
+                <div class="header-left">
+                    <img src="/diamond.svg" alt="Diamond Logo" class="logo">
+                    <h1>Saved URL Viewer</h1>
+                </div>
+                <nav class="header-nav">
+                    <a href="/" class="nav-button">🏠 Home</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="viewer-main glass-card">
+            <div class="viewer-controls">
+                <label for="folderViewerSelect">Select a Folder to View:</label>
+                <select id="folderViewerSelect" class="compact-input"></select>
+            </div>
+
+            <div class="url-display-section">
+                <div class="urls-header">
+                    <h2 id="urlListHeader">Select a folder to see the URLs</h2>
+                    <span id="urlListViewCount" class="count-badge">0 URLs</span>
+                </div>
+                <textarea id="urlListView" readonly></textarea>
+                <button id="copyViewedUrls" class="action-btn" disabled>📋 Copy All</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/viewer.js"></script>
+</body>
+</html>
