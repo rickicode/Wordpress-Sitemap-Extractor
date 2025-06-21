@@ -201,14 +201,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Update Functions ---
-    function displayResults(result, siteUrls) {
+    async function displayResults(result, siteUrls) {
         displayOverview(result);
 
         if (result.allUrls && result.allUrls.length > 0) {
             displayUrls(result.allUrls);
-            if (enableAutoSaveCheckbox.checked) autoSaveSitemap(result, siteUrls);
-            if (saveUrlToFileCheckbox.checked && folderSelect.value) saveUrlsToFile(result.allUrls, folderSelect.value);
-            showStatus(`Extraction complete. Found ${result.allUrls.length} URLs.`, 'success');
+            
+            let autoSaveMessage = null;
+            if (enableAutoSaveCheckbox.checked) {
+                autoSaveMessage = await autoSaveSitemap(result, siteUrls);
+            }
+            
+            if (saveUrlToFileCheckbox.checked && folderSelect.value) {
+                await saveUrlsToFile(result.allUrls, folderSelect.value);
+            }
+            
+            // Prioritize the auto-save message if it exists
+            if (autoSaveMessage) {
+                showStatus(autoSaveMessage, 'success');
+            } else {
+                showStatus(`Extraction complete. Found ${result.allUrls.length} URLs.`, 'success');
+            }
         } else {
             showStatus('No URLs found. Check if sites have feeds or sitemaps.', 'error');
         }
@@ -316,10 +329,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const fullUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
             autoSavedUrl.value = fullUrl;
             autoSaveSection.classList.remove('hidden');
-            showStatus(`Auto-saved to sitemap ID: ${result.sitemapId}`, 'success');
             if (managerSection.classList.contains('active')) loadSavedSitemaps();
+            
+            return `Auto-saved to sitemap ID: ${result.sitemapId}`;
         } catch (error) {
             showStatus(`Auto-save failed: ${error.message}`, 'error');
+            return null;
         }
     }
 
