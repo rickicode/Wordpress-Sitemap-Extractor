@@ -38,6 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const successCount = getElem('successCount');
     const failedCount = getElem('failedCount');
     const totalUrlsCount = getElem('totalUrlsCount');
+    const fileSaveStatusCard = getElem('fileSaveStatusCard');
+    const fileSaveStatusText = getElem('fileSaveStatusText');
     const urlsSection = getElem('urlsSection');
     const extractedUrlsTextarea = getElem('extractedUrls');
     const urlCountDisplay = getElem('urlCount');
@@ -227,7 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (saveUrlToFileCheckbox.checked && folderSelect.value) {
-                await saveUrlsToFile(result.allUrls, folderSelect.value);
+                const saveFileMessage = await saveUrlsToFile(result.allUrls, folderSelect.value);
+                if (saveFileMessage) {
+                    fileSaveStatusText.textContent = `Saved to ${folderSelect.value}`;
+                    fileSaveStatusCard.classList.remove('hidden');
+                }
             }
             
             // Prioritize the auto-save message if it exists
@@ -246,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsOverview.classList.add('hidden');
         urlsSection.classList.add('hidden');
         autoSaveSection.classList.add('hidden');
+        fileSaveStatusCard.classList.add('hidden');
         extractedUrlsTextarea.value = '';
         urlCountDisplay.textContent = '0 URLs';
         copyUrlsButton.disabled = true;
@@ -470,18 +477,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json', 'x-auth-password': currentPassword },
                 body: JSON.stringify({ urls, folder })
             });
-            if (!response.ok) throw new Error((await response.json()).message);
-            showStatus((await response.json()).message, 'success');
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
+            return result.message; // Return the success message
         } catch (error) {
-            showStatus(`Failed to save URLs to file: ${error.message}`, 'error');
+            showToast(`Error saving file: ${error.message}`, 'error');
+            return null; // Return null on failure
         }
     }
 
     // --- Utilities ---
     let toastTimeout;
-    function showToast(message) {
+    function showToast(message, type = 'success') {
         toast.textContent = message;
-        toast.classList.add('show');
+        toast.className = 'toast show'; // Reset classes
+        if (type === 'error') {
+            toast.classList.add('error');
+        }
         
         clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => {

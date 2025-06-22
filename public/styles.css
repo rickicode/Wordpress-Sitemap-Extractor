@@ -550,3 +550,7 @@ textarea#extractedUrls:focus {
     visibility: visible;
     transform: translate(-50%, -20px);
 }
+
+.toast.error {
+    background-color: var(--error-color);
+}
