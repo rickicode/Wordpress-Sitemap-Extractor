@@ -609,6 +609,35 @@ textarea#extractedUrls:focus {
     height: 100%;
 }
 
+.label-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.label-container label {
+    margin-bottom: 0;
+}
+
+.clear-tags-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.clear-tags-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--error-color);
+    border-color: var(--error-color);
+}
+
 .suggestions-dropdown {
     position: absolute;
     top: 100%;

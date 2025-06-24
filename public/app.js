@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const folderInput = getElem('folderInput');
     const folderTags = getElem('folderTags');
     const folderSuggestions = getElem('folderSuggestions');
+    const clearFolders = getElem('clearFolders');
     
     // Status & Results
     const statusMessage = getElem('statusMessage');
@@ -105,6 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
         folderInput.addEventListener('input', onFolderInputChange);
         folderInput.addEventListener('keydown', onFolderInputKeyDown);
         folderInput.addEventListener('focus', () => onFolderInputChange());
+        clearFolders.addEventListener('click', () => {
+            selectedFolders = [];
+            renderTags();
+            saveData();
+        });
         document.addEventListener('click', (e) => {
             if (!folderSelectContainer.contains(e.target)) {
                 folderSuggestions.style.display = 'none';
