@@ -82,10 +82,12 @@
                             </label>
                         </div>
                          <div class="control-item hidden" id="folderSelectContainer">
-                            <label for="folderSelect">Target Folder</label>
-                            <select id="folderSelect" class="folder-select compact-input" disabled>
-                                <option value="">Select folder...</option>
-                            </select>
+                            <label for="folderInput">Target Folder(s)</label>
+                            <div class="tag-input-container">
+                                <div id="folderTags" class="tag-container"></div>
+                                <input type="text" id="folderInput" class="compact-input" placeholder="Type or select folder...">
+                                <div id="folderSuggestions" class="suggestions-dropdown"></div>
+                            </div>
                         </div>
                     </div>
                     

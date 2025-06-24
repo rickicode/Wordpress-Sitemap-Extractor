@@ -7,6 +7,7 @@ const cheerio = require('cheerio');
 const cors = require('cors');
 const morgan = require('morgan');
 const { Pool } = require('pg');
+const fs = require('fs');
 
 // Load environment variables
 require('dotenv').config();
@@ -1186,7 +1187,6 @@ function escapeXml(unsafe) {
 
 // API endpoint to get available folders in data directory
 app.get('/api/folders', (req, res) => {
-    const fs = require('fs');
     const dataPath = path.join(__dirname, 'data');
     
     try {
@@ -1211,7 +1211,6 @@ app.get('/api/folders', (req, res) => {
 
 // API endpoint to get the content of a URL_LIST.txt file
 app.get('/api/urls/:folder', requireAuth, (req, res) => {
-    const fs = require('fs');
     const folderName = req.params.folder;
 
     if (!folderName || typeof folderName !== 'string' || folderName.trim() === '') {
@@ -1236,60 +1235,64 @@ app.get('/api/urls/:folder', requireAuth, (req, res) => {
 
 // API endpoint to save URLs to a specific folder
 app.post('/api/save-urls', (req, res) => {
-    const fs = require('fs');
-    const { urls, folder } = req.body;
-    
+    const { urls, folders } = req.body;
+
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
         return res.status(400).json({ error: 'URLs array is required' });
     }
-    
-    if (!folder || typeof folder !== 'string' || folder.trim() === '') {
-        return res.status(400).json({ error: 'Please select a folder to save URLs' });
+
+    if (!folders || !Array.isArray(folders) || folders.length === 0) {
+        return res.status(400).json({ error: 'Please select at least one folder to save URLs' });
     }
-    
-    // Sanitize folder name to prevent path traversal
-    const sanitizedFolder = folder.replace(/[^a-zA-Z0-9-_]/g, '');
-    if (sanitizedFolder !== folder) {
-        return res.status(400).json({ error: 'Invalid folder name. Only alphanumeric characters, hyphens, and underscores are allowed.' });
-    }
-    
-    const folderPath = path.join(__dirname, 'data', sanitizedFolder);
-    const urlFilePath = path.join(folderPath, 'URL_LIST.txt');
-    const infoFilePath = path.join(folderPath, 'INFO.txt');
-    
+
     try {
-        // Ensure folder exists
-        if (!fs.existsSync(folderPath)) {
-            fs.mkdirSync(folderPath, { recursive: true });
-        }
-        
-        // Prepare content for URL file (clean URLs only)
+        const savedFolders = [];
         const urlContent = urls.join('\n') + '\n';
-        
-        // Prepare content for info file
         const timestamp = new Date().toISOString();
-        const infoContent = `URL List Information
+        const localTimestamp = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+
+        for (const folder of folders) {
+            const sanitizedFolder = folder.replace(/[^a-zA-Z0-9-_]/g, '');
+            if (sanitizedFolder !== folder) {
+                console.warn(`Skipping invalid folder name: ${folder}`);
+                continue; // Skip invalid folder names
+            }
+
+            const folderPath = path.join(__dirname, 'data', sanitizedFolder);
+            const urlFilePath = path.join(folderPath, 'URL_LIST.txt');
+            const infoFilePath = path.join(folderPath, 'INFO.txt');
+
+            // Ensure folder exists
+            if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath, { recursive: true });
+            }
+
+            // Prepare content for info file
+            const infoContent = `URL List Information
 ====================
 Generated on: ${timestamp}
 Total URLs: ${urls.length}
 Folder: ${sanitizedFolder}
-Last updated: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
+Last updated: ${localTimestamp}
 `;
-        
-        // Write URLs to URL_LIST.txt (clean URLs only)
-        fs.writeFileSync(urlFilePath, urlContent, 'utf8');
-        
-        // Write metadata to INFO.txt
-        fs.writeFileSync(infoFilePath, infoContent, 'utf8');
-        
+
+            // Write files
+            fs.writeFileSync(urlFilePath, urlContent, 'utf8');
+            fs.writeFileSync(infoFilePath, infoContent, 'utf8');
+            
+            savedFolders.push(sanitizedFolder);
+        }
+
+        if (savedFolders.length === 0) {
+            return res.status(400).json({ error: 'No valid folders were provided.' });
+        }
+
         res.json({
             success: true,
-            message: `Successfully saved ${urls.length} URLs to ${sanitizedFolder}/URL_LIST.txt`,
-            folder: sanitizedFolder,
-            filename: 'URL_LIST.txt',
-            infoFile: 'INFO.txt',
+            message: `Successfully saved ${urls.length} URLs to ${savedFolders.length} folder(s).`,
+            folders: savedFolders,
             urlCount: urls.length,
-            timestamp: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+            timestamp: localTimestamp
         });
     } catch (error) {
         console.error('Error saving URLs to file:', error);
@@ -1308,16 +1311,3 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Access the application at http://localhost:${PORT}`);
 });
-
-// Helper function to escape HTML characters
-function escapeHtml(unsafe) {
-    return unsafe.replace(/[<>&'"]/g, function (c) {
-        switch (c) {
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '&': return '&amp;';
-            case '\'': return '&#x27;';
-            case '"': return '&quot;';
-        }
-    });
-}

@@ -554,3 +554,86 @@ textarea#extractedUrls:focus {
 .toast.error {
     background-color: var(--error-color);
 }
+
+/* --- Tag Input --- */
+.tag-input-container {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: var(--background-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+    min-height: 50px;
+}
+
+.tag-input-container:focus-within {
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.2);
+}
+
+.tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--primary-accent);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tag-item .remove-tag {
+    margin-left: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#folderInput {
+    flex-grow: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 4px 0;
+    color: var(--text-primary);
+    min-width: 150px;
+    height: 100%;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none; /* Hidden by default */
+}
+
+.suggestion-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+    background-color: var(--background-tertiary);
+}
+
+.suggestion-item.highlighted {
+    background-color: var(--primary-accent);
+}

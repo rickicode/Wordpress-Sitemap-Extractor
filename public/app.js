@@ -29,7 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoSaveIdInput = getElem('autoSaveId');
     const saveUrlToFileCheckbox = getElem('saveUrlToFile');
     const folderSelectContainer = getElem('folderSelectContainer');
-    const folderSelect = getElem('folderSelect');
+    const folderInput = getElem('folderInput');
+    const folderTags = getElem('folderTags');
+    const folderSuggestions = getElem('folderSuggestions');
     
     // Status & Results
     const statusMessage = getElem('statusMessage');
@@ -61,8 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
         SITE_URLS: 'xmlExtractor_siteUrls_v3', URL_LIMIT: 'xmlExtractor_urlLimit_v3',
         CHECK_VALIDITY: 'xmlExtractor_checkValidity_v3', AUTO_SAVE_ID: 'xmlExtractor_autoSaveId_v3',
         ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave_v3', AUTH_PASSWORD: 'xmlExtractor_authPassword_v3',
-        AUTH_SESSION: 'xmlExtractor_authSession_v3', SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile_v3'
+        AUTH_SESSION: 'xmlExtractor_authSession_v3', SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile_v3',
+        SELECTED_FOLDERS: 'xmlExtractor_selectedFolders_v1'
     };
+
+    // --- Tag Input State ---
+    let availableFolders = [];
+    let selectedFolders = [];
+    let suggestionIndex = -1;
 
     // --- Initialization ---
     checkAuthenticationStatus();
@@ -87,11 +95,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const inputsToSave = [siteUrlsTextarea, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox];
         inputsToSave.forEach(input => {
-            const eventType = input.type === 'checkbox' || input.type === 'select-one' ? 'change' : 'input';
+            const eventType = input.type === 'checkbox' ? 'change' : 'input';
             input.addEventListener(eventType, debounce(saveData, 500));
         });
 
         saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
+
+        // Folder Tag Input Listeners
+        folderInput.addEventListener('input', onFolderInputChange);
+        folderInput.addEventListener('keydown', onFolderInputKeyDown);
+        folderInput.addEventListener('focus', () => onFolderInputChange());
+        document.addEventListener('click', (e) => {
+            if (!folderSelectContainer.contains(e.target)) {
+                folderSuggestions.style.display = 'none';
+            }
+        });
     }
 
     // --- Authentication ---
@@ -188,7 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function startExtraction() {
         const siteUrls = siteUrlsTextarea.value.split('\n').map(url => url.trim()).filter(Boolean);
         if (siteUrls.length === 0) return showStatus('Please enter at least one valid URL.', 'error');
-        if (saveUrlToFileCheckbox.checked && !folderSelect.value) return showStatus('Please select a folder.', 'error');
+        
+        if (saveUrlToFileCheckbox.checked && selectedFolders.length === 0) {
+            return showStatus('Please select or create at least one folder.', 'error');
+        }
 
         resetUI();
         showLoading(true);
@@ -228,15 +249,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 autoSaveMessage = await autoSaveSitemap(result, siteUrls);
             }
             
-            if (saveUrlToFileCheckbox.checked && folderSelect.value) {
-                const saveFileMessage = await saveUrlsToFile(result.allUrls, folderSelect.value);
+            if (saveUrlToFileCheckbox.checked && selectedFolders.length > 0) {
+                const saveFileMessage = await saveUrlsToFile(result.allUrls, selectedFolders);
                 if (saveFileMessage) {
-                    fileSaveStatusText.textContent = `Saved to ${folderSelect.value}`;
+                    fileSaveStatusText.textContent = `Saved to ${selectedFolders.join(', ')}`;
                     fileSaveStatusCard.classList.remove('hidden');
                 }
             }
             
-            // Prioritize the auto-save message if it exists
             if (autoSaveMessage) {
                 showStatus(autoSaveMessage, 'success');
             } else {
@@ -269,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showStatus(message, type = 'normal') {
-        showLoading(false); // Always hide loader when showing a status
+        showLoading(false);
         if (!message || message.trim() === '') {
             statusMessage.classList.add('hidden');
         } else {
@@ -306,9 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(STORAGE_KEYS.SITE_URLS, siteUrlsTextarea.value);
         localStorage.setItem(STORAGE_KEYS.URL_LIMIT, urlLimitInput.value);
         localStorage.setItem(STORAGE_KEYS.CHECK_VALIDITY, checkValidityCheckbox.checked);
-        // We no longer save the autoSaveIdInput value, it's for manual override only
         localStorage.setItem(STORAGE_KEYS.ENABLE_AUTO_SAVE, enableAutoSaveCheckbox.checked);
         localStorage.setItem(STORAGE_KEYS.SAVE_URL_TO_FILE, saveUrlToFileCheckbox.checked);
+        localStorage.setItem(STORAGE_KEYS.SELECTED_FOLDERS, JSON.stringify(selectedFolders));
         
         setTimeout(() => { autoSaveIndicator.textContent = '💾 Settings saved'; }, 500);
     }
@@ -317,9 +337,14 @@ document.addEventListener('DOMContentLoaded', () => {
         siteUrlsTextarea.value = localStorage.getItem(STORAGE_KEYS.SITE_URLS) || '';
         urlLimitInput.value = localStorage.getItem(STORAGE_KEYS.URL_LIMIT) || '10';
         checkValidityCheckbox.checked = localStorage.getItem(STORAGE_KEYS.CHECK_VALIDITY) === 'true';
-        autoSaveIdInput.value = ''; // Clear this on load
+        autoSaveIdInput.value = '';
         enableAutoSaveCheckbox.checked = localStorage.getItem(STORAGE_KEYS.ENABLE_AUTO_SAVE) !== 'false';
         saveUrlToFileCheckbox.checked = localStorage.getItem(STORAGE_KEYS.SAVE_URL_TO_FILE) === 'true';
+        
+        const savedFolders = JSON.parse(localStorage.getItem(STORAGE_KEYS.SELECTED_FOLDERS) || '[]');
+        selectedFolders = savedFolders;
+        renderTags();
+
         onSaveUrlToFileToggle();
         autoSaveIndicator.textContent = '💾 Settings loaded';
     }
@@ -329,14 +354,14 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(STORAGE_KEYS).forEach(key => {
             if (!key.includes('AUTH')) localStorage.removeItem(key);
         });
+        selectedFolders = [];
+        renderTags();
         loadSavedData();
         showStatus('Saved data cleared.', 'success');
     }
 
     // --- Sitemap & File Saving ---
     async function autoSaveSitemap(extractionResult, siteUrls) {
-        // If auto-save is checked, custom ID is ignored and a numeric one is generated by the server.
-        // We can send an empty customId to signal this.
         const customId = enableAutoSaveCheckbox.checked ? '' : autoSaveIdInput.value.trim();
         try {
             const payload = { sites: siteUrls, customId, urls: extractionResult.allUrls };
@@ -440,11 +465,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Folder Tag Input Logic ---
+    function renderTags() {
+        folderTags.innerHTML = '';
+        selectedFolders.forEach(folder => {
+            const tag = document.createElement('div');
+            tag.className = 'tag-item';
+            tag.textContent = folder;
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-tag';
+            removeBtn.textContent = 'x';
+            removeBtn.onclick = () => removeTag(folder);
+            tag.appendChild(removeBtn);
+            folderTags.appendChild(tag);
+        });
+    }
+
+    function addTag(folder) {
+        const sanitized = folder.trim().replace(/[^a-zA-Z0-9-_]/g, '');
+        if (sanitized && !selectedFolders.includes(sanitized)) {
+            selectedFolders.push(sanitized);
+            renderTags();
+            saveData();
+        }
+        folderInput.value = '';
+        folderSuggestions.style.display = 'none';
+    }
+
+    function removeTag(folder) {
+        selectedFolders = selectedFolders.filter(f => f !== folder);
+        renderTags();
+        saveData();
+    }
+
+    function onFolderInputChange() {
+        const query = folderInput.value.toLowerCase();
+        
+        const filtered = availableFolders.filter(f => 
+            !selectedFolders.includes(f) && f.toLowerCase().includes(query)
+        );
+        
+        if (filtered.length > 0) {
+            showSuggestions(filtered);
+        } else {
+            folderSuggestions.style.display = 'none';
+        }
+    }
+
+    function showSuggestions(suggestions) {
+        folderSuggestions.innerHTML = '';
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.textContent = suggestion;
+            item.onclick = () => addTag(suggestion);
+            folderSuggestions.appendChild(item);
+        });
+        folderSuggestions.style.display = 'block';
+        suggestionIndex = -1;
+    }
+
+    function onFolderInputKeyDown(e) {
+        const items = folderSuggestions.querySelectorAll('.suggestion-item');
+        switch (e.key) {
+            case 'Enter':
+                e.preventDefault();
+                if (suggestionIndex > -1 && items[suggestionIndex]) {
+                    addTag(items[suggestionIndex].textContent);
+                } else if (folderInput.value) {
+                    addTag(folderInput.value);
+                }
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                if (items.length > 0) {
+                    suggestionIndex = (suggestionIndex + 1) % items.length;
+                    updateSuggestionHighlight(items);
+                }
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (items.length > 0) {
+                    suggestionIndex = (suggestionIndex - 1 + items.length) % items.length;
+                    updateSuggestionHighlight(items);
+                }
+                break;
+            case 'Backspace':
+                if (folderInput.value === '' && selectedFolders.length > 0) {
+                    removeTag(selectedFolders[selectedFolders.length - 1]);
+                }
+                break;
+            case 'Escape':
+                folderSuggestions.style.display = 'none';
+                break;
+        }
+    }
+
+    function updateSuggestionHighlight(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle('highlighted', i === suggestionIndex);
+        });
+    }
+
     async function onSaveUrlToFileToggle() {
         const isChecked = saveUrlToFileCheckbox.checked;
         folderSelectContainer.classList.toggle('hidden', !isChecked);
-        folderSelect.disabled = !isChecked;
-        if (isChecked && folderSelect.options.length <= 1) {
+        if (isChecked && availableFolders.length === 0) {
             await loadAvailableFolders();
         }
     }
@@ -454,35 +580,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/folders');
             if (!response.ok) throw new Error('Could not load folders.');
             const { folders } = await response.json();
-            populateFolderSelect(folders);
+            availableFolders = folders;
         } catch (error) {
             showStatus(error.message, 'error');
         }
     }
 
-    function populateFolderSelect(folders) {
-        folderSelect.innerHTML = '<option value="">Select folder...</option>';
-        folders.forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder;
-            option.textContent = folder;
-            folderSelect.appendChild(option);
-        });
-    }
-
-    async function saveUrlsToFile(urls, folder) {
+    async function saveUrlsToFile(urls, folders) {
         try {
             const response = await fetch('/api/save-urls', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-password': currentPassword },
-                body: JSON.stringify({ urls, folder })
+                body: JSON.stringify({ urls, folders })
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
-            return result.message; // Return the success message
+            return result.message;
         } catch (error) {
             showToast(`Error saving file: ${error.message}`, 'error');
-            return null; // Return null on failure
+            return null;
         }
     }
 
@@ -490,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let toastTimeout;
     function showToast(message, type = 'success') {
         toast.textContent = message;
-        toast.className = 'toast show'; // Reset classes
+        toast.className = 'toast show';
         if (type === 'error') {
             toast.classList.add('error');
         }
