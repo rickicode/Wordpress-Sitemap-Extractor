@@ -487,13 +487,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function addTag(folder) {
-        const sanitized = folder.trim().replace(/[^a-zA-Z0-9-_]/g, '');
-        if (sanitized && !selectedFolders.includes(sanitized)) {
-            selectedFolders.push(sanitized);
+    function addTag(folderName) {
+        const query = folderName.trim().toLowerCase();
+        if (!query) return;
+
+        const exactMatch = availableFolders.find(f => f.toLowerCase() === query);
+        if (exactMatch && !selectedFolders.includes(exactMatch)) {
+            selectedFolders.push(exactMatch);
             renderTags();
             saveData();
+            folderInput.value = '';
+            folderSuggestions.style.display = 'none';
+            return;
         }
+
+        const partialMatches = availableFolders.filter(f => f.toLowerCase().includes(query) && !selectedFolders.includes(f));
+        if (partialMatches.length === 1) {
+            selectedFolders.push(partialMatches[0]);
+            renderTags();
+            saveData();
+        } else if (partialMatches.length > 1) {
+            showSuggestions(partialMatches);
+            return; 
+        }
+        
         folderInput.value = '';
         folderSuggestions.style.display = 'none';
     }
@@ -538,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 if (suggestionIndex > -1 && items[suggestionIndex]) {
                     addTag(items[suggestionIndex].textContent);
-                } else if (folderInput.value) {
+                } else {
                     addTag(folderInput.value);
                 }
                 break;
