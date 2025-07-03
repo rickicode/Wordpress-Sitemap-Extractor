@@ -196,19 +196,236 @@ async function checkUrlValidity(url) {
     }
 }
 
-// Extract article URLs with priority: Feed first, then Sitemap
+/**
+ * Extract article URLs with priority: Sitemap first, then Feed
+ */
 async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
     baseUrl = sanitizeUrl(baseUrl);
     if (!baseUrl) {
         throw new Error('Invalid URL format');
     }
-    
+
     let allUrls = [];
     let source = 'sitemap'; // Default source
-    
-    // STEP 1: Try to extract from RSS/Atom feeds first
-    console.log(`\n=== Trying FEED extraction for ${baseUrl} ===`);
-    
+
+    // STEP 1: Try to extract from SITEMAP first
+    console.log(`\n=== Trying SITEMAP extraction for ${baseUrl} ===`);
+
+    try {
+        // First try the direct approach - wp-sitemap-posts-post-1.xml
+        const directSitemapUrl = `${baseUrl}/wp-sitemap-posts-post-1.xml`;
+        console.log(`Checking for sitemap at: ${directSitemapUrl}`);
+
+        const xmlContent = await fetchXml(directSitemapUrl);
+        const xmlData = await parseXml(xmlContent);
+
+        if (xmlData.urlset && xmlData.urlset.url) {
+            const urls = Array.isArray(xmlData.urlset.url)
+                ? xmlData.urlset.url.map(item => item.loc)
+                : [xmlData.urlset.url.loc];
+
+            allUrls.push(...urls);
+            source = 'sitemap';
+            console.log(`✅ Found ${urls.length} URLs in primary sitemap`);
+
+            // Try to find more sitemaps if we haven't hit the limit yet
+            if (limit === 0 || allUrls.length < limit) {
+                let sitemapIndex = 2;
+                while (true) {
+                    try {
+                        const additionalSitemapUrl = `${baseUrl}/wp-sitemap-posts-post-${sitemapIndex}.xml`;
+                        console.log(`Checking for additional sitemap: ${additionalSitemapUrl}`);
+
+                        const additionalXmlContent = await fetchXml(additionalSitemapUrl);
+                        const additionalXmlData = await parseXml(additionalXmlContent);
+
+                        if (additionalXmlData.urlset && additionalXmlData.urlset.url) {
+                            const additionalUrls = Array.isArray(additionalXmlData.urlset.url)
+                                ? additionalXmlData.urlset.url.map(item => item.loc)
+                                : [additionalXmlData.urlset.url.loc];
+
+                            if (additionalUrls.length === 0) break;
+
+                            allUrls.push(...additionalUrls);
+                            console.log(`✅ Found ${additionalUrls.length} URLs in additional sitemap #${sitemapIndex}`);
+
+                            sitemapIndex++;
+
+                            // Break if we've reached the limit
+                            if (limit > 0 && allUrls.length >= limit) break;
+                        } else {
+                            break;
+                        }
+                    } catch (error) {
+                        break; // Stop if no more sitemaps found
+                    }
+                }
+            }
+        }
+    } catch (directError) {
+        // If direct approach fails, try to find a sitemap index
+        console.log('❌ Primary sitemap not found. Trying to locate sitemap index...');
+
+        const possibleIndexes = [
+            `${baseUrl}/sitemap.xml`,
+            `${baseUrl}/sitemap_index.xml`,
+            `${baseUrl}/wp-sitemap.xml`
+        ];
+
+        let foundIndex = false;
+
+        for (const indexUrl of possibleIndexes) {
+            try {
+                console.log(`Checking for sitemap index at: ${indexUrl}`);
+
+                const indexXmlContent = await fetchXml(indexUrl);
+
+                // First try parsing as XML
+                try {
+                    const indexXmlData = await parseXml(indexXmlContent);
+
+                    if (indexXmlData.sitemapindex && indexXmlData.sitemapindex.sitemap) {
+                        foundIndex = true;
+                        const sitemaps = Array.isArray(indexXmlData.sitemapindex.sitemap)
+                            ? indexXmlData.sitemapindex.sitemap
+                            : [indexXmlData.sitemapindex.sitemap];
+
+                        const postSitemapUrls = sitemaps
+                            .map(item => item.loc)
+                            .filter(url => url.includes('post') || url.includes('article'));
+
+                        console.log(`Found ${postSitemapUrls.length} post sitemaps in index`);
+
+                        // Process each post sitemap found in the index
+                        for (const sitemapUrl of postSitemapUrls) {
+                            if (limit > 0 && allUrls.length >= limit) break;
+
+                            try {
+                                console.log(`Processing sitemap: ${sitemapUrl}`);
+
+                                const sitemapXmlContent = await fetchXml(sitemapUrl);
+                                const sitemapXmlData = await parseXml(sitemapXmlContent);
+
+                                if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
+                                    const urls = Array.isArray(sitemapXmlData.urlset.url)
+                                        ? sitemapXmlData.urlset.url.map(item => item.loc)
+                                        : [sitemapXmlData.urlset.url.loc];
+
+                                    allUrls.push(...urls);
+                                    source = 'sitemap';
+                                    console.log(`✅ Found ${urls.length} URLs in sitemap ${sitemapUrl}`);
+                                }
+                            } catch (sitemapError) {
+                                console.error(`❌ Error processing sitemap ${sitemapUrl}: ${sitemapError.message}`);
+                            }
+                        }
+
+                        // If no post-specific sitemaps found but there are sitemaps, try the first few
+                        if (postSitemapUrls.length === 0 && sitemaps.length > 0) {
+                            const firstFewSitemaps = sitemaps.slice(0, 3);
+
+                            for (const sitemap of firstFewSitemaps) {
+                                if (limit > 0 && allUrls.length >= limit) break;
+
+                                try {
+                                    console.log(`Processing sitemap: ${sitemap.loc}`);
+
+                                    const sitemapXmlContent = await fetchXml(sitemap.loc);
+                                    const sitemapXmlData = await parseXml(sitemapXmlContent);
+
+                                    if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
+                                        const urls = Array.isArray(sitemapXmlData.urlset.url)
+                                            ? sitemapXmlData.urlset.url.map(item => item.loc)
+                                            : [sitemapXmlData.urlset.url.loc];
+
+                                        allUrls.push(...urls);
+                                        source = 'sitemap';
+                                        console.log(`✅ Found ${urls.length} URLs in sitemap ${sitemap.loc}`);
+                                    }
+                                } catch (sitemapError) {
+                                    console.error(`❌ Error processing sitemap ${sitemap.loc}: ${sitemapError.message}`);
+                                }
+                            }
+                        }
+
+                        break; // Successfully found and processed index
+                    }
+                } catch (parseError) {
+                    // If XML parsing fails, try treating it as HTML and find sitemap links
+                    try {
+                        const $ = cheerio.load(indexXmlContent);
+                        const sitemapLinks = $('a[href*="sitemap"], a[href*=".xml"]')
+                            .map((_, el) => $(el).attr('href'))
+                            .get()
+                            .filter(url => url.includes('.xml'));
+
+                        if (sitemapLinks.length > 0) {
+                            foundIndex = true;
+                            console.log(`Found ${sitemapLinks.length} potential sitemap links in HTML`);
+
+                            for (const link of sitemapLinks) {
+                                if (limit > 0 && allUrls.length >= limit) break;
+
+                                // Make sure we have absolute URLs
+                                const absoluteLink = link.startsWith('http') ? link : new URL(link, baseUrl).toString();
+
+                                try {
+                                    console.log(`Processing potential sitemap: ${absoluteLink}`);
+
+                                    const sitemapXmlContent = await fetchXml(absoluteLink);
+                                    const sitemapXmlData = await parseXml(sitemapXmlContent);
+
+                                    if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
+                                        const urls = Array.isArray(sitemapXmlData.urlset.url)
+                                            ? sitemapXmlData.urlset.url.map(item => item.loc)
+                                            : [sitemapXmlData.urlset.url.loc];
+
+                                        allUrls.push(...urls);
+                                        source = 'sitemap';
+                                        console.log(`✅ Found ${urls.length} URLs in HTML-referenced sitemap ${absoluteLink}`);
+                                    }
+                                } catch (sitemapError) {
+                                    console.error(`❌ Error processing potential sitemap ${absoluteLink}: ${sitemapError.message}`);
+                                }
+                            }
+                        }
+                    } catch (htmlError) {
+                        // Continue to the next possible index
+                        continue;
+                    }
+                }
+            } catch (indexError) {
+                // Continue to the next possible index
+                continue;
+            }
+        }
+
+        if (!foundIndex && allUrls.length === 0) {
+            console.log(`❌ Could not find any WordPress sitemaps for ${baseUrl}`);
+        }
+    }
+
+    // If sitemap extraction succeeded, return early
+    if (allUrls.length > 0) {
+        if (limit > 0) {
+            return {
+                urls: allUrls.slice(0, limit),
+                source: source,
+                total: allUrls.length
+            };
+        }
+        return {
+            urls: allUrls,
+            source: source,
+            total: allUrls.length
+        };
+    }
+
+    // STEP 2: If no URLs found from sitemaps, fallback to FEED extraction
+    allUrls = [];
+    source = 'feed';
+    console.log(`\n=== Sitemap extraction failed, trying FEED extraction for ${baseUrl} ===`);
+
     // Common WordPress feed paths
     const commonFeeds = [
         `${baseUrl}/feed/`,
@@ -222,36 +439,35 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
         `${baseUrl}/index.php?feed=rss`,
         `${baseUrl}/index.php?feed=atom`
     ];
-    
+
     // Try each common feed URL and extract article URLs
     for (const feedUrl of commonFeeds) {
         try {
             console.log(`Checking feed at: ${feedUrl}`);
             const xmlContent = await fetchXml(feedUrl);
             const xmlData = await parseXml(xmlContent);
-            
+
             // Extract URLs from RSS feed
             if (xmlData.rss && xmlData.rss.channel && xmlData.rss.channel.item) {
                 const items = Array.isArray(xmlData.rss.channel.item)
                     ? xmlData.rss.channel.item
                     : [xmlData.rss.channel.item];
-                
+
                 const urls = items
                     .map(item => item.link)
                     .filter(url => url && typeof url === 'string');
-                
+
                 allUrls.push(...urls);
-                source = 'feed';
                 console.log(`✅ Found ${urls.length} URLs in RSS feed: ${feedUrl}`);
                 break; // Stop after finding first working feed
             }
-            
+
             // Extract URLs from Atom feed
             if (xmlData.feed && xmlData.feed.entry) {
                 const entries = Array.isArray(xmlData.feed.entry)
                     ? xmlData.feed.entry
                     : [xmlData.feed.entry];
-                
+
                 const urls = entries
                     .map(entry => {
                         if (entry.link) {
@@ -267,26 +483,25 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
                         return null;
                     })
                     .filter(url => url && typeof url === 'string');
-                
+
                 allUrls.push(...urls);
-                source = 'feed';
                 console.log(`✅ Found ${urls.length} URLs in Atom feed: ${feedUrl}`);
                 break; // Stop after finding first working feed
             }
-            
+
         } catch (error) {
             console.log(`❌ Could not fetch feed ${feedUrl}: ${error.message}`);
             continue;
         }
     }
-    
+
     // If no feeds worked, try to discover feeds from the main page
     if (allUrls.length === 0) {
         try {
             console.log(`🔍 Trying to discover feeds from HTML...`);
             const response = await http.get(baseUrl);
             const $ = cheerio.load(response.data);
-            
+
             // Look for feed links in HTML head
             const discoveredFeeds = [];
             $('link[type="application/rss+xml"], link[type="application/atom+xml"]').each((_, element) => {
@@ -296,36 +511,35 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
                     discoveredFeeds.push(absoluteUrl);
                 }
             });
-            
+
             // Try discovered feeds
             for (const feedUrl of discoveredFeeds) {
                 try {
                     console.log(`Trying discovered feed: ${feedUrl}`);
                     const xmlContent = await fetchXml(feedUrl);
                     const xmlData = await parseXml(xmlContent);
-                    
+
                     // Extract URLs from RSS feed
                     if (xmlData.rss && xmlData.rss.channel && xmlData.rss.channel.item) {
                         const items = Array.isArray(xmlData.rss.channel.item)
                             ? xmlData.rss.channel.item
                             : [xmlData.rss.channel.item];
-                        
+
                         const urls = items
                             .map(item => item.link)
                             .filter(url => url && typeof url === 'string');
-                        
+
                         allUrls.push(...urls);
-                        source = 'feed';
                         console.log(`✅ Found ${urls.length} URLs in discovered RSS feed: ${feedUrl}`);
                         break;
                     }
-                    
+
                     // Extract URLs from Atom feed
                     if (xmlData.feed && xmlData.feed.entry) {
                         const entries = Array.isArray(xmlData.feed.entry)
                             ? xmlData.feed.entry
                             : [xmlData.feed.entry];
-                        
+
                         const urls = entries
                             .map(entry => {
                                 if (entry.link) {
@@ -340,9 +554,8 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
                                 return null;
                             })
                             .filter(url => url && typeof url === 'string');
-                        
+
                         allUrls.push(...urls);
-                        source = 'feed';
                         console.log(`✅ Found ${urls.length} URLs in discovered Atom feed: ${feedUrl}`);
                         break;
                     }
@@ -355,206 +568,7 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
             console.log(`❌ Could not parse HTML for feed discovery: ${error.message}`);
         }
     }
-    
-    // STEP 2: If no URLs found from feeds, fallback to sitemap extraction
-    if (allUrls.length === 0) {
-        console.log(`\n=== Feed extraction failed, trying SITEMAP extraction for ${baseUrl} ===`);
-        
-        // First try the direct approach - wp-sitemap-posts-post-1.xml
-        try {
-            const directSitemapUrl = `${baseUrl}/wp-sitemap-posts-post-1.xml`;
-            console.log(`Checking for sitemap at: ${directSitemapUrl}`);
-            
-            const xmlContent = await fetchXml(directSitemapUrl);
-            const xmlData = await parseXml(xmlContent);
-            
-            if (xmlData.urlset && xmlData.urlset.url) {
-                const urls = Array.isArray(xmlData.urlset.url)
-                    ? xmlData.urlset.url.map(item => item.loc)
-                    : [xmlData.urlset.url.loc];
-                
-                allUrls.push(...urls);
-                source = 'sitemap';
-                console.log(`✅ Found ${urls.length} URLs in primary sitemap`);
-                
-                // Try to find more sitemaps if we haven't hit the limit yet
-                if (limit === 0 || allUrls.length < limit) {
-                    let sitemapIndex = 2;
-                    while (true) {
-                        try {
-                            const additionalSitemapUrl = `${baseUrl}/wp-sitemap-posts-post-${sitemapIndex}.xml`;
-                            console.log(`Checking for additional sitemap: ${additionalSitemapUrl}`);
-                            
-                            const additionalXmlContent = await fetchXml(additionalSitemapUrl);
-                            const additionalXmlData = await parseXml(additionalXmlContent);
-                            
-                            if (additionalXmlData.urlset && additionalXmlData.urlset.url) {
-                                const additionalUrls = Array.isArray(additionalXmlData.urlset.url)
-                                    ? additionalXmlData.urlset.url.map(item => item.loc)
-                                    : [additionalXmlData.urlset.url.loc];
-                                
-                                if (additionalUrls.length === 0) break;
-                                
-                                allUrls.push(...additionalUrls);
-                                console.log(`✅ Found ${additionalUrls.length} URLs in additional sitemap #${sitemapIndex}`);
-                                
-                                sitemapIndex++;
-                                
-                                // Break if we've reached the limit
-                                if (limit > 0 && allUrls.length >= limit) break;
-                            } else {
-                                break;
-                            }
-                        } catch (error) {
-                            break; // Stop if no more sitemaps found
-                        }
-                    }
-                }
-            }
-        } catch (directError) {
-            // If direct approach fails, try to find a sitemap index
-            console.log('❌ Primary sitemap not found. Trying to locate sitemap index...');
-            
-            const possibleIndexes = [
-                `${baseUrl}/sitemap.xml`,
-                `${baseUrl}/sitemap_index.xml`,
-                `${baseUrl}/wp-sitemap.xml`
-            ];
-            
-            let foundIndex = false;
-            
-            for (const indexUrl of possibleIndexes) {
-                try {
-                    console.log(`Checking for sitemap index at: ${indexUrl}`);
-                    
-                    const indexXmlContent = await fetchXml(indexUrl);
-                    
-                    // First try parsing as XML
-                    try {
-                        const indexXmlData = await parseXml(indexXmlContent);
-                        
-                        if (indexXmlData.sitemapindex && indexXmlData.sitemapindex.sitemap) {
-                            foundIndex = true;
-                            const sitemaps = Array.isArray(indexXmlData.sitemapindex.sitemap)
-                                ? indexXmlData.sitemapindex.sitemap
-                                : [indexXmlData.sitemapindex.sitemap];
-                            
-                            const postSitemapUrls = sitemaps
-                                .map(item => item.loc)
-                                .filter(url => url.includes('post') || url.includes('article'));
-                            
-                            console.log(`Found ${postSitemapUrls.length} post sitemaps in index`);
-                            
-                            // Process each post sitemap found in the index
-                            for (const sitemapUrl of postSitemapUrls) {
-                                if (limit > 0 && allUrls.length >= limit) break;
-                                
-                                try {
-                                    console.log(`Processing sitemap: ${sitemapUrl}`);
-                                    
-                                    const sitemapXmlContent = await fetchXml(sitemapUrl);
-                                    const sitemapXmlData = await parseXml(sitemapXmlContent);
-                                    
-                                    if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
-                                        const urls = Array.isArray(sitemapXmlData.urlset.url)
-                                            ? sitemapXmlData.urlset.url.map(item => item.loc)
-                                            : [sitemapXmlData.urlset.url.loc];
-                                        
-                                        allUrls.push(...urls);
-                                        source = 'sitemap';
-                                        console.log(`✅ Found ${urls.length} URLs in sitemap ${sitemapUrl}`);
-                                    }
-                                } catch (sitemapError) {
-                                    console.error(`❌ Error processing sitemap ${sitemapUrl}: ${sitemapError.message}`);
-                                }
-                            }
-                            
-                            // If no post-specific sitemaps found but there are sitemaps, try the first few
-                            if (postSitemapUrls.length === 0 && sitemaps.length > 0) {
-                                const firstFewSitemaps = sitemaps.slice(0, 3);
-                                
-                                for (const sitemap of firstFewSitemaps) {
-                                    if (limit > 0 && allUrls.length >= limit) break;
-                                    
-                                    try {
-                                        console.log(`Processing sitemap: ${sitemap.loc}`);
-                                        
-                                        const sitemapXmlContent = await fetchXml(sitemap.loc);
-                                        const sitemapXmlData = await parseXml(sitemapXmlContent);
-                                        
-                                        if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
-                                            const urls = Array.isArray(sitemapXmlData.urlset.url)
-                                                ? sitemapXmlData.urlset.url.map(item => item.loc)
-                                                : [sitemapXmlData.urlset.url.loc];
-                                            
-                                            allUrls.push(...urls);
-                                            source = 'sitemap';
-                                            console.log(`✅ Found ${urls.length} URLs in sitemap ${sitemap.loc}`);
-                                        }
-                                    } catch (sitemapError) {
-                                        console.error(`❌ Error processing sitemap ${sitemap.loc}: ${sitemapError.message}`);
-                                    }
-                                }
-                            }
-                            
-                            break; // Successfully found and processed index
-                        }
-                    } catch (parseError) {
-                        // If XML parsing fails, try treating it as HTML and find sitemap links
-                        try {
-                            const $ = cheerio.load(indexXmlContent);
-                            const sitemapLinks = $('a[href*="sitemap"], a[href*=".xml"]')
-                                .map((_, el) => $(el).attr('href'))
-                                .get()
-                                .filter(url => url.includes('.xml'));
-                            
-                            if (sitemapLinks.length > 0) {
-                                foundIndex = true;
-                                console.log(`Found ${sitemapLinks.length} potential sitemap links in HTML`);
-                                
-                                for (const link of sitemapLinks) {
-                                    if (limit > 0 && allUrls.length >= limit) break;
-                                    
-                                    // Make sure we have absolute URLs
-                                    const absoluteLink = link.startsWith('http') ? link : new URL(link, baseUrl).toString();
-                                    
-                                    try {
-                                        console.log(`Processing potential sitemap: ${absoluteLink}`);
-                                        
-                                        const sitemapXmlContent = await fetchXml(absoluteLink);
-                                        const sitemapXmlData = await parseXml(sitemapXmlContent);
-                                        
-                                        if (sitemapXmlData.urlset && sitemapXmlData.urlset.url) {
-                                            const urls = Array.isArray(sitemapXmlData.urlset.url)
-                                                ? sitemapXmlData.urlset.url.map(item => item.loc)
-                                                : [sitemapXmlData.urlset.url.loc];
-                                            
-                                            allUrls.push(...urls);
-                                            source = 'sitemap';
-                                            console.log(`✅ Found ${urls.length} URLs in HTML-referenced sitemap ${absoluteLink}`);
-                                        }
-                                    } catch (sitemapError) {
-                                        console.error(`❌ Error processing potential sitemap ${absoluteLink}: ${sitemapError.message}`);
-                                    }
-                                }
-                            }
-                        } catch (htmlError) {
-                            // Continue to the next possible index
-                            continue;
-                        }
-                    }
-                } catch (indexError) {
-                    // Continue to the next possible index
-                    continue;
-                }
-            }
-            
-            if (!foundIndex) {
-                throw new Error(`Could not find any WordPress feeds or sitemaps for ${baseUrl}`);
-            }
-        }
-    }
-    
+
     // Return only up to the limit if specified, along with source information
     if (limit > 0) {
         return {
@@ -563,7 +577,7 @@ async function extractArticleUrls(baseUrl, limit = DEFAULT_LIMIT) {
             total: allUrls.length
         };
     }
-    
+
     return {
         urls: allUrls,
         source: source,
