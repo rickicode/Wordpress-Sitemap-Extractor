@@ -497,6 +497,60 @@ textarea#extractedUrls:focus {
 ::-webkit-scrollbar-thumb { background: var(--background-tertiary); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary-accent); }
 
+/* --- Adsense Table Styles --- */
+.adsense-table-container {
+    margin-top: 10px;
+    overflow-x: auto;
+    border-radius: 14px;
+}
+.adsense-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--background-secondary);
+    border-radius: 14px;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 1em;
+    box-shadow: 0 2px 12px 0 var(--shadow-color);
+}
+.adsense-th {
+    background: var(--background-tertiary);
+    color: var(--primary-accent);
+    font-weight: 700;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    text-transform: lowercase;
+    font-size: 1em;
+    letter-spacing: 0.5px;
+}
+.adsense-td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1em;
+    vertical-align: middle;
+}
+.adsense-row:nth-child(even) {
+    background: var(--background-tertiary);
+}
+.adsense-row:nth-child(odd) {
+    background: var(--background-secondary);
+}
+.adsense-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 16px;
+    font-weight: 600;
+    font-size: 0.98em;
+    margin-right: 4px;
+    background: var(--success-color);
+    color: #fff;
+}
+.adsense-badge.error {
+    background: var(--error-color);
+    color: #fff;
+}
+
 /* --- Viewer Page Specific Styles --- */
 .viewer-main {
     padding: 30px;

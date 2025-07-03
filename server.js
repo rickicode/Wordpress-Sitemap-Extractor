@@ -595,7 +595,7 @@ async function extractFeedUrls(baseUrl, limit = 0) {
 // API endpoint to extract URLs from WordPress sitemaps
 app.post('/api/extract', async (req, res) => {
     try {
-        const { sites, limit = DEFAULT_LIMIT, checkValidity = false } = req.body;
+        const { sites, limit = DEFAULT_LIMIT, checkValidity = false, checkAdsense = false } = req.body;
         
         if (!sites || !Array.isArray(sites) || sites.length === 0) {
             return res.status(400).json({ error: 'Please provide an array of WordPress site URLs' });
@@ -610,11 +610,13 @@ app.post('/api/extract', async (req, res) => {
             validUrls: 0,
             invalidUrls: 0,
             allUrls: [],
-            siteResults: {}
+            siteResults: {},
+            adsenseResults: []
         };
         
         // Process each WordPress site
         for (const siteUrl of sites) {
+            let adsenseCodes = [];
             try {
                 const sanitizedUrl = sanitizeUrl(siteUrl);
                 if (!sanitizedUrl) {
@@ -623,7 +625,31 @@ app.post('/api/extract', async (req, res) => {
                 
                 result.processedSites++;
                 
-                // Extract article URLs from site (priority: feed first, then sitemap)
+                // Check Adsense code if requested
+                if (checkAdsense) {
+                    try {
+                        const homepageResp = await http.get(sanitizedUrl, { timeout: 10000 });
+                        const html = homepageResp.data;
+                        // Regex: match <script src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXX">
+                        const regex = /https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-(\d{10,32})/g;
+                        let match;
+                        let ids = [];
+                        while ((match = regex.exec(html)) !== null) {
+                            if (match[1]) ids.push(match[1]);
+                        }
+                        if (ids.length > 0) {
+                            adsenseCodes = [...new Set(ids)];
+                        }
+                    } catch (adsenseErr) {
+                        // Ignore error, just means no code found or fetch failed
+                    }
+                    result.adsenseResults.push({
+                        domain: sanitizedUrl,
+                        adsenseCodes: adsenseCodes
+                    });
+                }
+                
+                // Extract article URLs from site (priority: sitemap first, then feed)
                 const extractionResult = await extractArticleUrls(sanitizedUrl, parseInt(limit));
                 const articleUrls = extractionResult.urls;
                 const source = extractionResult.source;
@@ -692,6 +718,12 @@ app.post('/api/extract', async (req, res) => {
                     invalidUrls: 0,
                     error: error.message
                 };
+                if (checkAdsense) {
+                    result.adsenseResults.push({
+                        domain: siteUrl,
+                        adsenseCodes: []
+                    });
+                }
             }
         }
         

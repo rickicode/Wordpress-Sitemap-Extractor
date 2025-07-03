@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const siteUrlsTextarea = getElem('siteUrls');
     const urlLimitInput = getElem('urlLimit');
     const checkValidityCheckbox = getElem('checkValidity');
+    const checkAdsenseCheckbox = getElem('checkAdsense');
     const extractButton = getElem('extract');
     const clearDataButton = getElem('clearData');
     
@@ -224,7 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 sites: siteUrls,
                 limit: parseInt(urlLimitInput.value) || 10,
-                checkValidity: checkValidityCheckbox.checked
+                checkValidity: checkValidityCheckbox.checked,
+                checkAdsense: checkAdsenseCheckbox && checkAdsenseCheckbox.checked
             };
             
             const response = await fetch('/api/extract', {
@@ -246,6 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Update Functions ---
     async function displayResults(result, siteUrls) {
         displayOverview(result);
+
+        // Show Adsense results if present
+        showAdsenseResults(result.adsenseResults);
 
         if (result.allUrls && result.allUrls.length > 0) {
             displayUrls(result.allUrls);
@@ -271,6 +276,70 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             showStatus('No URLs found. Check if sites have feeds or sitemaps.', 'error');
         }
+    }
+
+    // Show Adsense results in a new card/section
+    function showAdsenseResults(adsenseResults) {
+        let container = document.getElementById('adsenseResultsSection');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'adsenseResultsSection';
+            container.className = 'urls-section glass-card';
+            container.style.marginTop = '24px';
+            const parent = document.querySelector('.content-section.active .input-section');
+            if (parent) parent.parentNode.insertBefore(container, parent.nextSibling);
+        }
+        container.innerHTML = '';
+        if (!adsenseResults || !Array.isArray(adsenseResults) || adsenseResults.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+        // Header
+        let html = `
+        <div class="urls-header">
+            <div class="urls-title">
+                <h2>Adsense Kode Results</h2>
+                <span id="adsenseDomainCount" class="count-badge">${adsenseResults.length} Domains</span>
+            </div>
+            <div class="urls-actions"></div>
+        </div>
+        `;
+        // Content area: modern, consistent adsense table using new style
+        html += `
+        <div class="adsense-table-container">
+        <table class="adsense-table">
+            <thead>
+                <tr>
+                    <th class="adsense-th" style="text-transform:uppercase;">DOMAIN</th>
+                    <th class="adsense-th" style="text-transform:uppercase;">ADSENSE CODE</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        adsenseResults.forEach((item, idx) => {
+            let domain = '';
+            try {
+                domain = new URL(item.domain).hostname.toLowerCase();
+            } catch {
+                domain = item.domain.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
+            }
+            let codeText = (item.adsenseCodes && item.adsenseCodes.length > 0)
+                ? `<span class="adsense-badge">${item.adsenseCodes.join(', ').toLowerCase()}</span>`
+                : `<span class="adsense-badge error">tidak ditemukan</span>`;
+            html += `
+                <tr class="adsense-row">
+                    <td class="adsense-td">${domain}</td>
+                    <td class="adsense-td">${codeText}</td>
+                </tr>
+            `;
+        });
+        html += `
+            </tbody>
+        </table>
+        </div>
+        `;
+        container.innerHTML = html;
     }
 
     function resetUI() {
