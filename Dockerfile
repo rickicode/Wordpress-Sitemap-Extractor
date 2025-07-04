@@ -54,11 +54,15 @@ EXPOSE 4000
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false
 
-# Create non-root user for security
+# Install Playwright browsers with root privileges
+RUN npx playwright install chromium --with-deps
+
+# Create non-root user and set permissions for Playwright cache
 RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && mkdir -p /home/appuser/Downloads \
+    && mkdir -p /home/appuser/.cache/ms-playwright \
     && chown -R appuser:appuser /home/appuser \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /home/appuser/.cache/ms-playwright
 
 # Switch to non-root user
 USER appuser
