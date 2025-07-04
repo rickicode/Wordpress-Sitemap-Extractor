@@ -1,65 +1,59 @@
-# Use Node.js 18 with Ubuntu base for better Playwright support
-FROM node:18-bookworm
+# Use Node.js 18 with Debian base for Playwright support
+FROM node:18-slim
 
-# Install system dependencies for Playwright
+# Install necessary dependencies for Playwright
 RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    procps \
-    libxss1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libatk1.0-0 \
-    libcairo-gobject2 \
-    libgtk-3-0 \
+    libwoff1 \
+    libopus0 \
+    libwebp7 \
+    libwebpdemux2 \
+    libenchant-2-2 \
+    libgudev-1.0-0 \
+    libsecret-1-0 \
+    libhyphen0 \
     libgdk-pixbuf2.0-0 \
+    libegl1 \
+    libgles2 \
     libxcomposite1 \
     libxcursor1 \
     libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrender1 \
-    libxtst6 \
-    libglib2.0-0 \
-    libnss3 \
     libxrandr2 \
+    libxss1 \
+    libxtst6 \
+    libnss3 \
+    libnspr4 \
     libdrm2 \
-    libxshmfence1 \
     libgbm1 \
-    --no-install-recommends \
+    libxshmfence1 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libasound2 \
+    libatspi2.0-0 \
+    libcups2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install Node.js dependencies
 RUN npm install
 
 # Copy application code
 COPY . .
 
-# Create non-root user first
-RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && chown -R appuser:appuser /app
+# Install Playwright and browsers as root
+RUN npx playwright install --with-deps chromium
 
-# Switch to non-root user
-USER appuser
-
-# Install Playwright browsers as appuser to ensure correct cache location
-RUN npx playwright install chromium --with-deps
-
-# Expose port (sesuai dengan server yang berjalan di port 4000)
+# Expose the port the app runs on
 EXPOSE 4000
 
-# Set environment variables for Playwright
+# Set environment variables
 ENV NODE_ENV=production
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false
 
-# Start the application
+# Command to run the application
 CMD ["npm", "start"]
