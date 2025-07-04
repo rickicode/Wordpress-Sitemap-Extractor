@@ -41,11 +41,13 @@ COPY package*.json ./
 # Install Node.js dependencies
 RUN npm install
 
-# Install Playwright browsers
-RUN npx playwright install chromium --with-deps
-
 # Copy application code
 COPY . .
+
+# Install Playwright browsers as root to ensure correct permissions
+RUN npx playwright install chromium --with-deps \
+    && mkdir -p /opt/playwright \
+    && chown -R root:root /opt/playwright
 
 # Expose port (sesuai dengan server yang berjalan di port 4000)
 EXPOSE 4000
