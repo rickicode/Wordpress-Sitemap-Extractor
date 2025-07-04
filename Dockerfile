@@ -45,16 +45,13 @@ RUN npm install
 COPY . .
 
 # Install Playwright browsers as root to ensure correct permissions
-RUN npx playwright install chromium --with-deps \
-    && mkdir -p /opt/playwright \
-    && chown -R root:root /opt/playwright
+RUN npx playwright install chromium --with-deps
 
 # Expose port (sesuai dengan server yang berjalan di port 4000)
 EXPOSE 4000
 
 # Set environment variables for Playwright
 ENV NODE_ENV=production
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false
 
 # Create non-root user for security
