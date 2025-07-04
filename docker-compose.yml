@@ -1,0 +1,17 @@
+services:
+  wordpress-sitemap-extractor:
+    build: .
+    ports:
+      - "3100:4000"
+    environment:
+      - NODE_ENV=production
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-your_password_here}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/test}
+    volumes:
+      - ./.env:/app/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -26,6 +26,12 @@ A Node.js web application that extracts article URLs from WordPress sitemaps and
 - Web interface for inputting multiple WordPress site URLs (one per line).
 - Server-side processing for better performance and reliability.
 - Option to validate URLs to check if they're accessible (not returning 404).
+- **🤖 Captcha Detection Feature**:
+  - Check if domains are protected by robot captcha using Playwright.
+  - **Exclusive Mode**: When enabled, only captcha checking is performed (no sitemap extraction).
+  - Detect common captcha types (reCAPTCHA, hCaptcha, Cloudflare Challenge).
+  - Automatic screenshot capture for verification.
+  - Results displayed in organized table format.
 - Configurable URL limit per site.
 - Copy to clipboard functionality for extracted URLs
 - Detailed summary of extraction results
@@ -79,6 +85,19 @@ Start the web server:
 npm start
 ```
 
+### Docker Installation
+
+You can also run the application using Docker:
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Or build and run manually
+docker build -t wordpress-sitemap-extractor .
+docker run -p 3000:3000 -e AUTH_PASSWORD=your_password_here wordpress-sitemap-extractor
+```
+
 Then access the application in your web browser:
 
 ```
@@ -92,6 +111,7 @@ http://localhost:3000
    - **URL limit per site**: Set the maximum number of URLs to extract from each site.
    - **Save Sitemap**: Enable to save the results as a sitemap collection in the database (requires custom ID).
    - **Validate URLs**: Check if the extracted URLs are accessible (not 404).
+   - **Check for Robot Captcha**: Enable to check if domains are protected by captcha systems. **Note: When this option is enabled, only captcha checking will be performed (no sitemap extraction).**
    - **Save URLs to File**: Enable to save the results to a text file. A dropdown will appear to select the target folder.
 3. Click "Extract URLs".
 4. View the extracted URLs and a summary of the results.
@@ -112,7 +132,8 @@ Request body:
 {
   "sites": ["https://example1.com", "https://example2.org"],
   "limit": 10,
-  "checkValidity": true
+  "checkValidity": true,
+  "checkCaptcha": true
 }
 ```
 
@@ -127,6 +148,17 @@ Response:
   "validUrls": 18,
   "invalidUrls": 2,
   "allUrls": ["https://example1.com/post1", ...],
+  "captchaResults": [
+    {
+      "domain": "https://example1.com",
+      "captchaDetected": false,
+      "captchaType": "unknown",
+      "screenshot": "/screenshots/2025-01-07T06-45-00-000Z.png",
+      "timestamp": "2025-01-07T06:45:00.000Z",
+      "responseTime": 0,
+      "error": null
+    }
+  ],
   "siteResults": {
     "https://example1.com": {
       "totalUrls": 10,

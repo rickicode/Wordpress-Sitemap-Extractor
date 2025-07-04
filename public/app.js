@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlLimitInput = getElem('urlLimit');
     const checkValidityCheckbox = getElem('checkValidity');
     const checkAdsenseCheckbox = getElem('checkAdsense');
+    const checkCaptchaCheckbox = getElem('checkCaptcha');
     const extractButton = getElem('extract');
     const clearDataButton = getElem('clearData');
     
@@ -64,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const STORAGE_KEYS = {
         SITE_URLS: 'xmlExtractor_siteUrls_v3', URL_LIMIT: 'xmlExtractor_urlLimit_v3',
         CHECK_VALIDITY: 'xmlExtractor_checkValidity_v3', AUTO_SAVE_ID: 'xmlExtractor_autoSaveId_v3',
+        CHECK_CAPTCHA: 'xmlExtractor_checkCaptcha_v3',
         ENABLE_AUTO_SAVE: 'xmlExtractor_enableAutoSave_v3', AUTH_PASSWORD: 'xmlExtractor_authPassword_v3',
         AUTH_SESSION: 'xmlExtractor_authSession_v3', SAVE_URL_TO_FILE: 'xmlExtractor_saveUrlToFile_v3',
         SELECTED_FOLDERS: 'xmlExtractor_selectedFolders_v1'
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
         openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
         
-        const inputsToSave = [siteUrlsTextarea, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox];
+        const inputsToSave = [siteUrlsTextarea, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox, checkCaptchaCheckbox];
         inputsToSave.forEach(input => {
             const eventType = input.type === 'checkbox' ? 'change' : 'input';
             input.addEventListener(eventType, debounce(saveData, 500));
@@ -220,13 +222,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resetUI();
         showLoading(true);
+        
+        // Show different message for captcha-only mode
+        if (checkCaptcha) {
+            showStatus('Checking captcha protection on domains... Please wait.', 'info');
+        }
 
         try {
             const payload = {
                 sites: siteUrls,
                 limit: parseInt(urlLimitInput.value) || 10,
                 checkValidity: checkValidityCheckbox.checked,
-                checkAdsense: checkAdsenseCheckbox && checkAdsenseCheckbox.checked
+                checkAdsense: checkAdsenseCheckbox && checkAdsenseCheckbox.checked,
+                checkCaptcha: checkCaptchaCheckbox && checkCaptchaCheckbox.checked
             };
             
             const response = await fetch('/api/extract', {
@@ -251,6 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show Adsense results if present
         showAdsenseResults(result.adsenseResults);
+        
+        // Show Captcha results if present
+        showCaptchaResults(result.captchaResults);
+
+        // If only captcha check is enabled, show different message
+        if (checkCaptchaCheckbox && checkCaptchaCheckbox.checked && result.captchaResults && result.captchaResults.length > 0) {
+            showStatus(`Captcha check complete. Checked ${result.captchaResults.length} domains.`, 'success');
+            showLoading(false);
+            return;
+        }
 
         if (result.allUrls && result.allUrls.length > 0) {
             displayUrls(result.allUrls);
@@ -341,6 +359,100 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         container.innerHTML = html;
     }
+
+    // Show Captcha results in a new card/section
+    function showCaptchaResults(captchaResults) {
+        let container = document.getElementById('captchaResultsSection');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'captchaResultsSection';
+            container.className = 'urls-section glass-card';
+            container.style.marginTop = '24px';
+            const parent = document.querySelector('.content-section.active .input-section');
+            if (parent) parent.parentNode.insertBefore(container, parent.nextSibling);
+        }
+        container.innerHTML = '';
+        if (!captchaResults || !Array.isArray(captchaResults) || captchaResults.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+        // Header
+        let html = `
+        <div class="urls-header">
+            <div class="urls-title">
+                <h2>Captcha Detection Results</h2>
+                <span id="captchaDomainCount" class="count-badge">${captchaResults.length} Domains</span>
+            </div>
+            <div class="urls-actions"></div>
+        </div>
+        `;
+        // Content area: modern, consistent captcha table using new style
+        html += `
+        <div class="captcha-table-container">
+        <table class="captcha-table">
+            <thead>
+                <tr>
+                    <th class="captcha-th" style="text-transform:uppercase;">DOMAIN</th>
+                    <th class="captcha-th" style="text-transform:uppercase;">CAPTCHA STATUS</th>
+                    <th class="captcha-th" style="text-transform:uppercase;">TYPE</th>
+                    <th class="captcha-th" style="text-transform:uppercase;">SCREENSHOT</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        captchaResults.forEach((item, idx) => {
+            let domain = '';
+            try {
+                domain = new URL(item.domain).hostname.toLowerCase();
+            } catch {
+                domain = item.domain.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
+            }
+            let statusText = item.captchaDetected
+                ? `<span class="captcha-badge detected">DETECTED</span>`
+                : `<span class="captcha-badge safe">SAFE</span>`;
+            let typeText = item.captchaType || 'N/A';
+            let screenshotDisplay = item.screenshot
+                ? `<img src="${item.screenshot}" alt="Screenshot" class="captcha-screenshot" onclick="enlargeImage(this)">`
+                : '<span class="no-screenshot">No Screenshot</span>';
+            
+            html += `
+                <tr class="captcha-row">
+                    <td class="captcha-td">${domain}</td>
+                    <td class="captcha-td">${statusText}</td>
+                    <td class="captcha-td">${typeText}</td>
+                    <td class="captcha-td">${screenshotDisplay}</td>
+                </tr>
+            `;
+        });
+        html += `
+            </tbody>
+        </table>
+        </div>
+        `;
+        container.innerHTML = html;
+    }
+
+    // Function to enlarge image when clicked
+    function enlargeImage(imgElement) {
+        const overlay = document.createElement('div');
+        overlay.className = 'image-overlay';
+        overlay.innerHTML = `
+            <div class="image-modal">
+                <span class="close-modal" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                <img src="${imgElement.src}" alt="Enlarged Screenshot" class="enlarged-image">
+            </div>
+        `;
+        
+        overlay.onclick = (e) => {
+            if (e.target === overlay) overlay.remove();
+        };
+        
+        document.body.appendChild(overlay);
+    }
+
+    // Make function globally available
+    window.enlargeImage = enlargeImage;
 
     function resetUI() {
         showStatus('', 'normal');

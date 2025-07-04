@@ -8,6 +8,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { Pool } = require('pg');
 const fs = require('fs');
+const playwright = require('playwright');
 
 // Load environment variables
 require('dotenv').config();
@@ -591,11 +592,170 @@ async function extractFeedUrls(baseUrl, limit = 0) {
     return result.urls;
 }
 
+// Function to check for captcha using Playwright
+async function checkCaptcha(url) {
+    let browser;
+    const startTime = Date.now();
+    
+    try {
+        // Ensure URL has protocol
+        let fullUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            fullUrl = 'https://' + url;
+        }
+        
+        console.log(`[CAPTCHA] Starting captcha check for: ${fullUrl}`);
+        
+        browser = await playwright.chromium.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        });
+        
+        const context = await browser.newContext({
+            userAgent: USER_AGENT,
+            viewport: { width: 1920, height: 1080 }
+        });
+        
+        const page = await context.newPage();
+        
+        console.log(`[CAPTCHA] Navigating to: ${fullUrl}`);
+        const response = await page.goto(fullUrl, { timeout: 30000, waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(5000); // Wait for potential captcha to load
+        
+        console.log(`[CAPTCHA] Page loaded, checking for robot challenge indicators...`);
+        
+        // Check for specific robot challenge indicators that block website access
+        let captchaDetected = false;
+        let captchaType = 'No Robot Challenge';
+        
+        // 1. Check for Cloudflare Challenge (most common robot blocker)
+        const cfChallengeSelectors = [
+            '.cf-challenge-running',
+            '#challenge-form',
+            '.challenge-form',
+            '[data-ray]', // Cloudflare ray ID
+            '.cf-wrapper',
+            '#cf-challenge-stage'
+        ];
+        
+        for (const selector of cfChallengeSelectors) {
+            const element = await page.$(selector);
+            if (element) {
+                captchaDetected = true;
+                captchaType = 'Cloudflare Robot Challenge';
+                console.log(`[CAPTCHA] Found Cloudflare challenge: ${selector}`);
+                break;
+            }
+        }
+        
+        // 2. Check for "Access Denied" or "Blocked" messages
+        if (!captchaDetected) {
+            const blockingTexts = [
+                'access denied',
+                'access forbidden',
+                'you have been blocked',
+                'your access to this site has been limited',
+                'rate limited',
+                'too many requests',
+                'verify you are human',
+                'please verify that you are a human',
+                'checking your browser',
+                'security check'
+            ];
+            
+            const pageContent = await page.textContent('body');
+            const lowerContent = pageContent.toLowerCase();
+            
+            for (const text of blockingTexts) {
+                if (lowerContent.includes(text)) {
+                    captchaDetected = true;
+                    captchaType = 'Access Blocked/Rate Limited';
+                    console.log(`[CAPTCHA] Found blocking message: "${text}"`);
+                    break;
+                }
+            }
+        }
+        
+        // 3. Check for DDoS protection pages
+        if (!captchaDetected) {
+            const ddosSelectors = [
+                '[data-testid="challenge-title"]',
+                '.ddos-protection',
+                '.bot-protection',
+                '#ddos-protection',
+                '.security-check'
+            ];
+            
+            for (const selector of ddosSelectors) {
+                const element = await page.$(selector);
+                if (element) {
+                    captchaDetected = true;
+                    captchaType = 'DDoS/Bot Protection';
+                    console.log(`[CAPTCHA] Found DDoS protection: ${selector}`);
+                    break;
+                }
+            }
+            
+            // Additional check for DDoS/Bot protection text in specific elements
+            const titleElement = await page.$('title');
+            if (titleElement) {
+                const titleText = await titleElement.textContent();
+                if (titleText && (titleText.toLowerCase().includes('ddos protection') ||
+                                 titleText.toLowerCase().includes('bot protection') ||
+                                 titleText.toLowerCase().includes('security check'))) {
+                    captchaDetected = true;
+                    captchaType = 'DDoS/Bot Protection (Title)';
+                    console.log(`[CAPTCHA] Found protection in title: ${titleText}`);
+                }
+            }
+        }
+        
+        // 4. Check HTTP status and response codes that indicate blocking
+        if (response && (response.status() === 403 || response.status() === 429)) {
+            captchaDetected = true;
+            captchaType = `HTTP ${response.status()} - Access Blocked`;
+            console.log(`[CAPTCHA] HTTP status indicates blocking: ${response.status()}`);
+        }
+        
+        // Take screenshot as base64 (temporary, not saved to disk)
+        console.log(`[CAPTCHA] Taking screenshot as base64 data`);
+        const screenshotBuffer = await page.screenshot({
+            fullPage: true,
+            type: 'png'
+        });
+        const screenshotBase64 = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
+        
+        const responseTime = Date.now() - startTime;
+        console.log(`[CAPTCHA] Check completed in ${responseTime}ms. Captcha detected: ${captchaDetected}`);
+        
+        await browser.close();
+        return {
+            captchaDetected,
+            captchaType,
+            screenshot: screenshotBase64,
+            timestamp: new Date().toISOString(),
+            responseTime,
+            error: null
+        };
+    } catch (error) {
+        console.error(`[CAPTCHA] Error checking ${url}:`, error.message);
+        if (browser) await browser.close();
+        return {
+            captchaDetected: false,
+            captchaType: 'Error',
+            screenshot: '',
+            timestamp: new Date().toISOString(),
+            responseTime: Date.now() - startTime,
+            error: error.message
+        };
+    }
+}
+
 
 // API endpoint to extract URLs from WordPress sitemaps
 app.post('/api/extract', async (req, res) => {
     try {
-        const { sites, limit = DEFAULT_LIMIT, checkValidity = false, checkAdsense = false } = req.body;
+        const { sites, limit = DEFAULT_LIMIT, checkValidity = false, checkAdsense = false, checkCaptcha: shouldCheckCaptcha = false } = req.body;
         
         if (!sites || !Array.isArray(sites) || sites.length === 0) {
             return res.status(400).json({ error: 'Please provide an array of WordPress site URLs' });
@@ -611,12 +771,26 @@ app.post('/api/extract', async (req, res) => {
             invalidUrls: 0,
             allUrls: [],
             siteResults: {},
-            adsenseResults: []
+            adsenseResults: [],
+            captchaResults: []
         };
         
         // Process each WordPress site
         for (const siteUrl of sites) {
             let adsenseCodes = [];
+            let captchaResult = null;
+            
+            // If shouldCheckCaptcha is enabled, ONLY check captcha and skip sitemap extraction
+            if (shouldCheckCaptcha) {
+                captchaResult = await checkCaptcha(siteUrl);
+                result.captchaResults.push({
+                    domain: siteUrl,
+                    ...captchaResult
+                });
+                result.processedSites++;
+                result.successfulSites++;
+                continue; // Skip sitemap extraction
+            }
             try {
                 const sanitizedUrl = sanitizeUrl(siteUrl);
                 if (!sanitizedUrl) {
