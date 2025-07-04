@@ -44,7 +44,14 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Install Playwright browsers as root to ensure correct permissions
+# Create non-root user first
+RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
+    && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Install Playwright browsers as appuser to ensure correct cache location
 RUN npx playwright install chromium --with-deps
 
 # Expose port (sesuai dengan server yang berjalan di port 4000)
@@ -53,19 +60,6 @@ EXPOSE 4000
 # Set environment variables for Playwright
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false
-
-# Install Playwright browsers with root privileges
-RUN npx playwright install chromium --with-deps
-
-# Create non-root user and set permissions for Playwright cache
-RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && mkdir -p /home/appuser/.cache/ms-playwright \
-    && chown -R appuser:appuser /home/appuser \
-    && chown -R appuser:appuser /app \
-    && chown -R appuser:appuser /home/appuser/.cache/ms-playwright
-
-# Switch to non-root user
-USER appuser
 
 # Start the application
 CMD ["npm", "start"]
