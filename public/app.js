@@ -222,6 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resetUI();
         showLoading(true);
+        extractButton.disabled = true;
+        extractButton.textContent = 'Loading...';
         
         // Show different message for captcha-only mode
         if (checkCaptcha) {
@@ -250,6 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             showStatus(`Error: ${error.message}`, 'error');
+            showLoading(false);
+            extractButton.disabled = false;
+            extractButton.textContent = 'Extract URLs';
         }
     }
 
@@ -262,6 +267,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Show Captcha results if present
         showCaptchaResults(result.captchaResults);
+        
+        // Show URL Results per domain
+        showUrlResults(result.siteResults);
 
         // If only captcha check is enabled, show different message
         if (checkCaptchaCheckbox && checkCaptchaCheckbox.checked && result.captchaResults && result.captchaResults.length > 0) {
@@ -270,6 +278,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        showLoading(false);
+        extractButton.disabled = false;
+        extractButton.textContent = 'Extract URLs';
+        
         if (result.allUrls && result.allUrls.length > 0) {
             displayUrls(result.allUrls);
             
@@ -454,6 +466,80 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make function globally available
     window.enlargeImage = enlargeImage;
 
+    // Show URL results per domain in a new card/section
+    function showUrlResults(siteResults) {
+        let container = document.getElementById('urlResultsSection');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'urlResultsSection';
+            container.className = 'urls-section glass-card';
+            container.style.marginTop = '24px';
+            const parent = document.querySelector('.content-section.active .input-section');
+            if (parent) parent.parentNode.insertBefore(container, parent.nextSibling);
+        }
+        container.innerHTML = '';
+        if (!siteResults || Object.keys(siteResults).length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+        
+        // Header
+        let html = `
+        <div class="urls-header">
+            <div class="urls-title">
+                <h2>URL Extraction Results</h2>
+                <span id="urlDomainCount" class="count-badge">${Object.keys(siteResults).length} Domains</span>
+            </div>
+            <div class="urls-actions"></div>
+        </div>
+        `;
+        
+        // Content area: modern table showing URL count per domain
+        html += `
+        <div class="url-results-table-container">
+        <table class="url-results-table">
+            <thead>
+                <tr>
+                    <th class="url-results-th" style="text-transform:uppercase;">DOMAIN</th>
+                    <th class="url-results-th" style="text-transform:uppercase;">TOTAL URLs</th>
+                    <th class="url-results-th" style="text-transform:uppercase;">VALID URLs</th>
+                    <th class="url-results-th" style="text-transform:uppercase;">INVALID URLs</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        Object.entries(siteResults).forEach(([domain, data]) => {
+            let domainName = '';
+            try {
+                domainName = new URL(domain).hostname.toLowerCase();
+            } catch {
+                domainName = domain.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
+            }
+            
+            const totalUrls = data.totalUrls || 0;
+            const validUrls = data.validUrls || 0;
+            const invalidUrls = data.invalidUrls || 0;
+            
+            html += `
+                <tr class="url-results-row">
+                    <td class="url-results-td">${domainName}</td>
+                    <td class="url-results-td"><span class="url-count-badge total">${totalUrls}</span></td>
+                    <td class="url-results-td"><span class="url-count-badge valid">${validUrls}</span></td>
+                    <td class="url-results-td"><span class="url-count-badge invalid">${invalidUrls}</span></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+            </tbody>
+        </table>
+        </div>
+        `;
+        container.innerHTML = html;
+    }
+
     function resetUI() {
         showStatus('', 'normal');
         resultsOverview.classList.add('hidden');
@@ -463,6 +549,18 @@ document.addEventListener('DOMContentLoaded', () => {
         extractedUrlsTextarea.value = '';
         urlCountDisplay.textContent = '0 URLs';
         copyUrlsButton.disabled = true;
+        
+        // Hide adsense results
+        const adsenseSection = document.getElementById('adsenseResultsSection');
+        if (adsenseSection) adsenseSection.classList.add('hidden');
+        
+        // Hide captcha results
+        const captchaSection = document.getElementById('captchaResultsSection');
+        if (captchaSection) captchaSection.classList.add('hidden');
+        
+        // Hide URL results
+        const urlResultsSection = document.getElementById('urlResultsSection');
+        if (urlResultsSection) urlResultsSection.classList.add('hidden');
     }
 
     function showLoading(isLoading) {
@@ -549,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Sitemap & File Saving ---
     async function autoSaveSitemap(extractionResult, siteUrls) {
-        const customId = enableAutoSaveCheckbox.checked ? '' : autoSaveIdInput.value.trim();
+        const customId = autoSaveIdInput.value.trim();
         try {
             const payload = { sites: siteUrls, customId, urls: extractionResult.allUrls };
             const response = await fetch('/api/sitemap/save-direct', {

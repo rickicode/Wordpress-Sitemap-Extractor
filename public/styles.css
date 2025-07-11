@@ -688,6 +688,72 @@ textarea#extractedUrls:focus {
     object-fit: contain;
 }
 
+/* --- URL Results Table Styles --- */
+.url-results-table-container {
+    margin-top: 10px;
+    overflow-x: auto;
+    border-radius: 14px;
+}
+
+.url-results-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--background-secondary);
+    border-radius: 14px;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 1em;
+    box-shadow: 0 2px 12px 0 var(--shadow-color);
+}
+
+.url-results-th {
+    background: var(--background-tertiary);
+    color: var(--primary-accent);
+    font-weight: 700;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    text-transform: lowercase;
+    font-size: 1em;
+    letter-spacing: 0.5px;
+}
+
+.url-results-td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1em;
+    vertical-align: middle;
+}
+
+.url-results-row:nth-child(even) {
+    background: var(--background-tertiary);
+}
+
+.url-results-row:nth-child(odd) {
+    background: var(--background-secondary);
+}
+
+.url-count-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #fff;
+}
+
+.url-count-badge.total {
+    background: var(--primary-accent);
+}
+
+.url-count-badge.valid {
+    background: var(--success-color);
+}
+
+.url-count-badge.invalid {
+    background: var(--error-color);
+}
+
 /* --- Viewer Page Specific Styles --- */
 .viewer-main {
     padding: 30px;
