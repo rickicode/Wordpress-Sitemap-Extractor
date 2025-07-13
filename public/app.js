@@ -647,27 +647,147 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Sitemap & File Saving ---
     async function autoSaveSitemap(extractionResult, siteUrls) {
-        const customId = autoSaveIdInput.value.trim();
+        const input = autoSaveIdInput.value.trim();
+        if (!input) {
+            showStatus('Please enter a sitemap ID', 'error');
+            return null;
+        }
+        
+        // Support single ID dan multiple IDs
+        const ids = input.includes(',') 
+            ? input.split(',').map(id => id.trim()).filter(Boolean)
+            : [input];
+        
+        const results = [];
+        const allUrls = extractionResult.allUrls;
+        
         try {
-            const payload = { sites: siteUrls, customId, urls: extractionResult.allUrls };
-            const response = await fetch('/api/sitemap/save-direct', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-auth-password': currentPassword },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error((await response.json()).message);
-            const result = await response.json();
+            for (let i = 0; i < ids.length; i++) {
+                const customId = ids[i];
+                
+                // Update progress di UI
+                showStatus(`Creating sitemap ${i+1} of ${ids.length}: ${customId}...`, 'info');
+                
+                try {
+                    const payload = { 
+                        sites: siteUrls, 
+                        customId, 
+                        urls: allUrls // SEMUA URL untuk setiap ID
+                    };
+                    
+                    const response = await fetch('/api/sitemap/save-direct', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'x-auth-password': currentPassword 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error((await response.json()).message);
+                    const result = await response.json();
+                    results.push(result);
+                    
+                } catch (error) {
+                    console.error(`Failed to save sitemap ${customId}:`, error);
+                    showToast(`Failed to save sitemap ${customId}: ${error.message}`, 'error');
+                    // Lanjutkan ke ID berikutnya meski ada error
+                }
+            }
             
+            if (results.length > 0) {
+                // Update UI dengan hasil multiple sitemaps
+                displayMultipleSitemapResults(results);
+                
+                if (managerSection.classList.contains('active')) loadSavedSitemaps();
+                
+                return results.length === 1 
+                    ? `Auto-saved to sitemap ID: ${results[0].sitemapId}`
+                    : `Auto-saved to ${results.length} sitemaps: ${results.map(r => r.sitemapId).join(', ')}`;
+            } else {
+                showStatus('Failed to save any sitemaps', 'error');
+                return null;
+            }
+            
+        } catch (error) {
+            showStatus(`Auto-save failed: ${error.message}`, 'error');
+            return null;
+        }
+    }
+
+    // Function to display multiple sitemap results
+    function displayMultipleSitemapResults(results) {
+        if (!results || results.length === 0) {
+            autoSaveSection.classList.add('hidden');
+            return;
+        }
+        
+        if (results.length === 1) {
+            // Single sitemap - use existing UI
+            const result = results[0];
             autoSavedId.textContent = result.sitemapId;
             const fullUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
             autoSavedUrl.value = fullUrl;
             autoSaveSection.classList.remove('hidden');
-            if (managerSection.classList.contains('active')) loadSavedSitemaps();
+        } else {
+            // Multiple sitemaps - update UI to show all
+            autoSavedId.textContent = `${results.length} sitemaps`;
             
-            return `Auto-saved to sitemap ID: ${result.sitemapId}`;
-        } catch (error) {
-            showStatus(`Auto-save failed: ${error.message}`, 'error');
-            return null;
+            // Create a list of all sitemap URLs
+            const urlList = results.map(r => `${window.location.origin}/sitemap/${r.sitemapId}.xml`).join('\n');
+            autoSavedUrl.value = urlList;
+            
+            // Update the auto-save section content for multiple sitemaps
+            const autoSaveResult = autoSaveSection.querySelector('.auto-save-result');
+            if (autoSaveResult) {
+                const resultText = autoSaveResult.querySelector('.result-text');
+                if (resultText) {
+                    resultText.innerHTML = `✅ Auto-saved to <strong>${results.length}</strong> sitemaps: <strong>${results.map(r => r.sitemapId).join(', ')}</strong>`;
+                }
+                
+                // Add individual sitemap links
+                let existingList = autoSaveSection.querySelector('.multiple-sitemap-list');
+                if (existingList) {
+                    existingList.remove();
+                }
+                
+                const multipleSitemapList = document.createElement('div');
+                multipleSitemapList.className = 'multiple-sitemap-list';
+                multipleSitemapList.style.marginTop = '10px';
+                
+                results.forEach(result => {
+                    const sitemapItem = document.createElement('div');
+                    sitemapItem.className = 'sitemap-item';
+                    sitemapItem.style.cssText = 'display: flex; align-items: center; margin: 5px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;';
+                    
+                    const fullUrl = `${window.location.origin}/sitemap/${result.sitemapId}.xml`;
+                    sitemapItem.innerHTML = `
+                        <span style="flex: 1; font-family: monospace; font-size: 14px;">/sitemap/${result.sitemapId}.xml</span>
+                        <button class="mini-button copy-single-url" data-url="${fullUrl}" title="Copy URL" style="margin-left: 8px;">📋</button>
+                        <button class="mini-button open-single-url" data-url="${fullUrl}" title="Open URL" style="margin-left: 4px;">🔗</button>
+                    `;
+                    
+                    multipleSitemapList.appendChild(sitemapItem);
+                });
+                
+                autoSaveResult.appendChild(multipleSitemapList);
+                
+                // Add event listeners for individual copy/open buttons
+                multipleSitemapList.querySelectorAll('.copy-single-url').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(btn.dataset.url);
+                        showToast('Sitemap URL copied!');
+                    });
+                });
+                
+                multipleSitemapList.querySelectorAll('.open-single-url').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        window.open(btn.dataset.url, '_blank');
+                    });
+                });
+            }
+            
+            autoSaveSection.classList.remove('hidden');
         }
     }
 
