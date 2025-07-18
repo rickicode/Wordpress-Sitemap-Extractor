@@ -752,6 +752,212 @@ async function checkCaptcha(url) {
 }
 
 
+// API endpoint for bulk extraction with range-based processing
+app.post('/api/bulk-extract', requireAuth, async (req, res) => {
+    try {
+        const { rangeGroups, limit = DEFAULT_LIMIT, checkValidity = false, checkAdsense = false } = req.body;
+        
+        if (!rangeGroups || !Array.isArray(rangeGroups) || rangeGroups.length === 0) {
+            return res.status(400).json({ error: 'Please provide valid range groups data' });
+        }
+        
+        const result = {
+            totalSites: 0,
+            processedSites: 0,
+            successfulSites: 0,
+            failedSites: 0,
+            totalUrls: 0,
+            rangeResults: {},
+            siteResults: {},
+            adsenseResults: []
+        };
+        
+        // Process each range group
+        for (const group of rangeGroups) {
+            const { range, subdomains, numbers } = group;
+            const combinedUrls = [];
+            const groupAdsenseResults = [];
+            
+            result.totalSites += subdomains.length;
+            
+            // Extract URLs from each subdomain in the group
+            for (const siteUrl of subdomains) {
+                try {
+                    const sanitizedUrl = sanitizeUrl(siteUrl);
+                    if (!sanitizedUrl) {
+                        throw new Error('Invalid URL format');
+                    }
+                    
+                    result.processedSites++;
+                    
+                    // Check Adsense code if requested
+                    if (checkAdsense) {
+                        try {
+                            const homepageResp = await http.get(sanitizedUrl, { timeout: 10000 });
+                            const html = homepageResp.data;
+                            const regex = /https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-(\d{10,32})/g;
+                            let match;
+                            let ids = [];
+                            while ((match = regex.exec(html)) !== null) {
+                                if (match[1]) ids.push(match[1]);
+                            }
+                            const adsenseCodes = ids.length > 0 ? [...new Set(ids)] : [];
+                            groupAdsenseResults.push({
+                                domain: sanitizedUrl,
+                                adsenseCodes: adsenseCodes
+                            });
+                        } catch (adsenseErr) {
+                            groupAdsenseResults.push({
+                                domain: sanitizedUrl,
+                                adsenseCodes: []
+                            });
+                        }
+                    }
+                    
+                    // Extract article URLs from site
+                    const extractionResult = await extractArticleUrls(sanitizedUrl, parseInt(limit));
+                    const articleUrls = extractionResult.urls;
+                    const source = extractionResult.source;
+                    
+                    if (articleUrls.length > 0) {
+                        result.successfulSites++;
+                        combinedUrls.push(...articleUrls);
+                        
+                        // Check validity of each article URL if requested
+                        if (checkValidity) {
+                            const validityResults = [];
+                            
+                            for (const url of articleUrls) {
+                                const validityResult = await checkUrlValidity(url);
+                                validityResults.push(validityResult);
+                            }
+                            
+                            const validUrls = validityResults.filter(result => result.valid).map(result => result.url);
+                            const invalidUrls = validityResults.filter(result => !result.valid).map(result => result.url);
+                            
+                            result.siteResults[sanitizedUrl] = {
+                                totalUrls: articleUrls.length,
+                                validUrls: validUrls.length,
+                                invalidUrls: invalidUrls.length,
+                                urls: validUrls,
+                                source: source
+                            };
+                        } else {
+                            result.siteResults[sanitizedUrl] = {
+                                totalUrls: articleUrls.length,
+                                validUrls: articleUrls.length,
+                                invalidUrls: 0,
+                                urls: articleUrls,
+                                source: source
+                            };
+                        }
+                    } else {
+                        result.failedSites++;
+                        result.siteResults[sanitizedUrl] = {
+                            totalUrls: 0,
+                            validUrls: 0,
+                            invalidUrls: 0,
+                            error: 'No URLs found',
+                            source: 'unknown'
+                        };
+                    }
+                } catch (error) {
+                    result.failedSites++;
+                    const urlKey = typeof sanitizedUrl !== 'undefined' ? sanitizedUrl : sanitizeUrl(siteUrl);
+                    result.siteResults[urlKey || siteUrl] = {
+                        totalUrls: 0,
+                        validUrls: 0,
+                        invalidUrls: 0,
+                        error: error.message
+                    };
+                    if (checkAdsense) {
+                        groupAdsenseResults.push({
+                            domain: siteUrl,
+                            adsenseCodes: []
+                        });
+                    }
+                }
+            }
+            
+            // Add adsense results from this group
+            result.adsenseResults.push(...groupAdsenseResults);
+            
+            // Remove duplicates from combined URLs
+            const uniqueUrls = [...new Set(combinedUrls)];
+            result.totalUrls += uniqueUrls.length;
+            
+            // Store range results
+            result.rangeResults[range] = {
+                range,
+                numbers,
+                subdomains,
+                urls: uniqueUrls
+            };
+            
+            // Save to sitemaps and folders for each number in the range
+            for (const num of numbers) {
+                // Save to sitemap
+                try {
+                    const sitemapPayload = {
+                        sites: subdomains,
+                        customId: num.toString(),
+                        urls: uniqueUrls,
+                        source: 'bulk'
+                    };
+                    
+                    await fetch('http://localhost:' + (process.env.PORT || 4000) + '/api/sitemap/save-direct', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-auth-password': process.env.AUTH_PASSWORD
+                        },
+                        body: JSON.stringify(sitemapPayload)
+                    });
+                } catch (sitemapError) {
+                    console.error(`Error saving sitemap ${num}:`, sitemapError.message);
+                }
+                
+                // Save to RDP folder
+                try {
+                    const folderName = `RDP${num}`;
+                    const folderPath = path.join(__dirname, 'data', folderName);
+                    const urlFilePath = path.join(folderPath, 'URL_LIST.txt');
+                    const infoFilePath = path.join(folderPath, 'INFO.txt');
+                    
+                    // Ensure folder exists
+                    if (!fs.existsSync(folderPath)) {
+                        fs.mkdirSync(folderPath, { recursive: true });
+                    }
+                    
+                    // Prepare content
+                    const urlContent = uniqueUrls.join('\n') + '\n';
+                    const timestamp = new Date().toISOString();
+                    const localTimestamp = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+                    const infoContent = `URL List Information (Bulk Generated)
+Generated on: ${timestamp}
+Total URLs: ${uniqueUrls.length}
+Folder: ${folderName}
+Range: ${range}
+Subdomains: ${subdomains.join(', ')}
+Last updated: ${localTimestamp}
+`;
+                    
+                    // Write files
+                    fs.writeFileSync(urlFilePath, urlContent, 'utf8');
+                    fs.writeFileSync(infoFilePath, infoContent, 'utf8');
+                } catch (fileError) {
+                    console.error(`Error saving to folder RDP${num}:`, fileError.message);
+                }
+            }
+        }
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error processing bulk extraction request:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
 // API endpoint to extract URLs from WordPress sitemaps
 app.post('/api/extract', async (req, res) => {
     try {

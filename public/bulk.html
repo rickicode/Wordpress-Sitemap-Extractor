@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WordPress Sitemap URL Extractor</title>
+    <title>Bulk WordPress Sitemap URL Extractor</title>
     <link rel="icon" type="image/png" href="/diamond.png">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -14,7 +14,7 @@
             <div class="auth-header">
                 <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
                 <h2>Authentication Required</h2>
-                <p>Enter your password to access the extractor.</p>
+                <p>Enter your password to access the bulk extractor.</p>
             </div>
             <div class="auth-form">
                 <input type="password" id="globalAuthPassword" placeholder="Enter access password">
@@ -31,27 +31,28 @@
                 <div class="header-content">
                     <div class="header-left">
                         <img src="/diamond.svg" alt="Diamond Logo" class="logo">
-                        <h1>WP Sitemap Extractor</h1>
+                        <h1>Bulk WP Extractor</h1>
                     </div>
                     <nav class="header-nav">
-                        <button class="nav-button active" id="homeNav">Home</button>
-                        <a href="/bulk.html" class="nav-button">Bulk</a>
-                        <button class="nav-button" id="manageNav">Manager</button>
+                        <a href="/index.html" class="nav-button">Home</a>
+                        <button class="nav-button active" id="bulkNav">Bulk</button>
+                        <a href="/manage" class="nav-button">Manager</a>
                         <a href="/viewer.html" class="nav-button">Viewer</a>
                         <button class="nav-button logout" id="logoutButton">Logout</button>
                     </nav>
                 </div>
             </header>
 
-            <!-- Home Section -->
-            <div class="content-section active" id="homeSection">
+            <!-- Bulk Section -->
+            <div class="content-section active" id="bulkSection">
                 <div class="input-section glass-card">
-                    <label for="siteUrls">Enter WordPress Site URLs (one per line):</label>
-                    <textarea id="siteUrls" placeholder="https://example1.com&#10;https://example2.com" rows="5"></textarea>
+                    <label for="bulkInput">Enter Bulk Input (subdomain|range format):</label>
+                    <textarea id="bulkInput" placeholder="cart-shopone.aideronrobotics.com|6-8&#10;cart-shoptwo.aideronrobotics.com|6-8&#10;cart-shopone.agungbisnis.biz.id|9-11" rows="8"></textarea>
                     <div class="auto-save-info" id="autoSaveIndicator"></div>
                     
                     <div class="info-box">
-                        <p><strong>Smart Extraction:</strong> The app automatically tries RSS/Atom feeds first, then falls back to sitemaps.</p>
+                        <p><strong>Bulk Processing:</strong> Process multiple subdomains with range-based sitemap generation.</p>
+                        <p><strong>Format:</strong> subdomain|start-end (e.g., example.com|6-8 creates sitemap/6.xml, sitemap/7.xml, sitemap/8.xml)</p>
                     </div>
                     
                     <div class="extraction-controls">
@@ -60,53 +61,23 @@
                                 <label for="urlLimit">URL Limit / Site</label>
                                 <input type="number" id="urlLimit" min="1" max="1000" value="10" class="compact-input">
                             </div>
-                            <div class="control-item">
-                                <label for="autoSaveId">Sitemap Save ID</label>
-                                <input type="text" id="autoSaveId" placeholder="e.g., 16 or 16,17,18 for multiple" class="compact-input" maxlength="100">
-                            </div>
                         </div>
                         <div class="checkbox-group">
-                             <label class="compact-checkbox" for="enableAutoSave">
-                                <input type="checkbox" id="enableAutoSave" checked>
-                                <span class="checkmark">✓</span>
-                                <span class="checkbox-text">Auto-Save Sitemap</span>
-                            </label>
                             <label class="compact-checkbox" for="checkValidity">
                                 <input type="checkbox" id="checkValidity">
                                 <span class="checkmark">✓</span>
                                 <span class="checkbox-text">Validate URLs (404 Check)</span>
                             </label>
                             <label class="compact-checkbox" for="checkAdsense">
-                                <input type="checkbox" id="checkAdsense">
+                                <input type="checkbox" id="checkAdsense" checked>
                                 <span class="checkmark">✓</span>
                                 <span class="checkbox-text">Check Adsense Kode (homepage)</span>
                             </label>
-                            <label class="compact-checkbox" for="saveUrlToFile">
-                                <input type="checkbox" id="saveUrlToFile">
-                                <span class="checkmark">✓</span>
-                                <span class="checkbox-text">Save URLs to File</span>
-                            </label>
-                            <label class="compact-checkbox" for="checkCaptcha">
-                                <input type="checkbox" id="checkCaptcha">
-                                <span class="checkmark">✓</span>
-                                <span class="checkbox-text">Check for Robot Captcha</span>
-                            </label>
-                        </div>
-                         <div class="control-item hidden" id="folderSelectContainer">
-                            <div class="label-container">
-                                <label for="folderInput">Target Folder(s)</label>
-                                <button id="clearFolders" class="clear-tags-btn" title="Clear selected folders">Clear</button>
-                            </div>
-                            <div class="tag-input-container">
-                                <div id="folderTags" class="tag-container"></div>
-                                <input type="text" id="folderInput" class="compact-input" placeholder="Type or select folder...">
-                                <div id="folderSuggestions" class="suggestions-dropdown"></div>
-                            </div>
                         </div>
                     </div>
                     
                     <div class="action-row">
-                        <button id="extract" class="extract-btn">🚀 Extract URLs</button>
+                        <button id="bulkExtract" class="extract-btn">🚀 Start Bulk Processing</button>
                         <button id="clearData" class="clear-btn" title="Clear saved settings">🗑️</button>
                     </div>
                 </div>
@@ -115,21 +86,25 @@
                     <div id="statusMessage"></div>
                     <div id="loadingIndicator" class="hidden">
                         <div class="spinner"></div>
-                        <span>Extracting URLs...</span>
+                        <span>Processing bulk extraction...</span>
                     </div>
                 </div>
 
-                <div class="auto-save-section hidden" id="autoSaveSection">
-                    <div class="auto-save-result glass-card">
-                        <span class="result-text">✅ Auto-saved to Sitemap ID: <strong id="autoSavedId">-</strong></span>
-                        <div class="result-actions">
-                            <input type="text" id="autoSavedUrl" readonly>
-                            <button id="copyAutoSavedUrl" class="mini-button" title="Copy URL">📋</button>
-                            <button id="openAutoSavedUrl" class="mini-button" title="Open URL">🔗</button>
+                <!-- Progress Section -->
+                <div class="progress-section hidden glass-card" id="progressSection">
+                    <div class="progress-header">
+                        <h3>Bulk Processing Progress</h3>
+                        <div class="overall-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="overallProgressFill"></div>
+                            </div>
+                            <span id="overallProgressText">0%</span>
                         </div>
                     </div>
+                    <div id="progressDetails" class="progress-details"></div>
                 </div>
 
+                <!-- Results Overview -->
                 <div class="results-overview hidden" id="resultsOverview">
                     <div class="overview-cards">
                         <div class="overview-card glass-card">
@@ -153,51 +128,45 @@
                                 <div class="card-value" id="totalUrlsCount">0</div>
                             </div>
                         </div>
-                        <div class="overview-card glass-card hidden" id="fileSaveStatusCard">
-                            <div class="card-icon">💾</div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">📁</div>
                             <div class="card-content">
-                                <div class="card-title">File Status</div>
-                                <div class="card-value" id="fileSaveStatusText" style="font-size: 16px; font-weight: 500;">-</div>
+                                <div class="card-title">Ranges Processed</div>
+                                <div class="card-value" id="rangesCount">0</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Bulk Results Section -->
+                <div class="bulk-results-section hidden glass-card" id="bulkResultsSection">
+                    <div class="urls-header">
+                        <div class="urls-title">
+                            <h2>Bulk Processing Results</h2>
+                            <span id="bulkResultCount" class="count-badge">0 Ranges</span>
+                        </div>
+                    </div>
+                    <div id="bulkResultsContent" class="bulk-results-content"></div>
+                </div>
+
+                <!-- URLs Section -->
                 <div class="urls-section hidden glass-card" id="urlsSection">
                     <div class="urls-header">
                         <div class="urls-title">
-                            <h2>Extracted URLs</h2>
+                            <h2>Extracted URLs by Range</h2>
                             <span id="urlCount" class="count-badge">0 URLs</span>
                         </div>
                         <div class="urls-actions">
                             <button id="copyUrls" disabled class="action-btn copy-btn">📋 Copy All</button>
                         </div>
                     </div>
-                    <textarea id="extractedUrls" placeholder="Extracted URLs will appear here..." readonly></textarea>
-                </div>
-            </div>
-
-            <!-- Manager Section -->
-            <div class="content-section" id="managerSection">
-                <div class="manager-header">
-                    <h2>Sitemap Manager</h2>
-                    <p>Manage all your saved sitemap collections</p>
-                </div>
-                
-                <div class="saved-sitemaps-section glass-card">
-                    <div class="section-header">
-                        <h2>Saved Sitemaps</h2>
-                        <button id="refreshSitemaps" class="refresh-button">🔄 Refresh</button>
-                    </div>
-                    <div class="saved-sitemaps-container" id="savedSitemapsContainer">
-                        <div class="loading-sitemaps">Loading saved sitemaps...</div>
-                    </div>
+                    <textarea id="extractedUrls" placeholder="Extracted URLs grouped by range will appear here..." readonly></textarea>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="/bulk.js"></script>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
