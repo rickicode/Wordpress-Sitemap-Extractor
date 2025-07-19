@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Format Generator - WordPress Sitemap Extractor</title>
+    <link rel="icon" type="image/png" href="/diamond.png">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <!-- Authentication Section -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-modal glass-card">
+            <div class="auth-header">
+                <img src="/diamond.svg" alt="Diamond Logo" class="logo-auth">
+                <h2>Authentication Required</h2>
+                <p>Enter your password to access the format generator.</p>
+            </div>
+            <div class="auth-form">
+                <input type="password" id="globalAuthPassword" placeholder="Enter access password">
+                <button id="globalAuthButton" class="auth-button">Access Application</button>
+            </div>
+            <div id="globalAuthStatus" class="auth-status"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="main-app hidden" id="mainApp">
+        <div class="container">
+            <header class="header glass-card">
+                <div class="header-content">
+                    <div class="header-left">
+                        <img src="/diamond.svg" alt="Diamond Logo" class="logo">
+                        <h1>Format Generator</h1>
+                    </div>
+                    <nav class="header-nav">
+                        <a href="/index.html" class="nav-button">Home</a>
+                        <a href="/bulk.html" class="nav-button">Bulk</a>
+                        <button class="nav-button active" id="generatorNav">Generator</button>
+                        <a href="/manage" class="nav-button">Manager</a>
+                        <a href="/viewer.html" class="nav-button">Viewer</a>
+                        <button class="nav-button logout" id="logoutButton">Logout</button>
+                    </nav>
+                </div>
+            </header>
+
+            <!-- Generator Section -->
+            <div class="content-section active" id="generatorSection">
+                <!-- Input Section -->
+                <div class="input-section glass-card">
+                    <label for="domainInput">Enter Domain List:</label>
+                    <textarea id="domainInput" placeholder="cellularone.tokyoloveshop.com&#10;cellularone.displayoutlook.biz.id&#10;cellulartwo.displayoutlook.biz.id&#10;cellularone.advanceclass.biz.id&#10;cellularone.beautyfresh.biz.id&#10;cellularone.advancedream.biz.id" rows="8"></textarea>
+                    <div class="auto-save-info" id="autoSaveIndicator"></div>
+                    
+                    <div class="info-box">
+                        <p><strong>Format Generator:</strong> Generate formatted output with domain ranges and number sequences.</p>
+                        <p><strong>Example:</strong> If Domain Range = 2, Range = 3, Start = 6, then first 2 domains get |6-8, next 2 get |9-11, etc.</p>
+                    </div>
+                    
+                    <!-- Generator Controls -->
+                    <div class="generator-controls">
+                        <div class="controls-group">
+                            <div class="control-item">
+                                <label for="domainRange">Domain Range</label>
+                                <input type="number" id="domainRange" min="1" max="100" value="2" class="compact-input" placeholder="Domains per group">
+                            </div>
+                            <div class="control-item">
+                                <label for="numberRange">Range Size</label>
+                                <input type="number" id="numberRange" min="1" max="100" value="3" class="compact-input" placeholder="Numbers per range">
+                            </div>
+                            <div class="control-item">
+                                <label for="startNumber">Start From</label>
+                                <input type="number" id="startNumber" min="1" max="9999" value="6" class="compact-input" placeholder="Starting number">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-row">
+                        <button id="generateFormat" class="extract-btn">🚀 Generate Format</button>
+                        <button id="clearData" class="clear-btn" title="Clear all data">🗑️</button>
+                    </div>
+                </div>
+
+                <!-- Status Section -->
+                <div class="status-section">
+                    <div id="statusMessage"></div>
+                </div>
+
+                <!-- Results Overview -->
+                <div class="results-overview hidden" id="resultsOverview">
+                    <div class="overview-cards">
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">📝</div>
+                            <div class="card-content">
+                                <div class="card-title">Total Domains</div>
+                                <div class="card-value" id="totalDomainsCount">0</div>
+                            </div>
+                        </div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">📦</div>
+                            <div class="card-content">
+                                <div class="card-title">Total Groups</div>
+                                <div class="card-value" id="totalGroupsCount">0</div>
+                            </div>
+                        </div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">🔢</div>
+                            <div class="card-content">
+                                <div class="card-title">Range Span</div>
+                                <div class="card-value" id="rangeSpanText">0-0</div>
+                            </div>
+                        </div>
+                        <div class="overview-card glass-card">
+                            <div class="card-icon">📋</div>
+                            <div class="card-content">
+                                <div class="card-title">Output Lines</div>
+                                <div class="card-value" id="outputLinesCount">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generated Format Section -->
+                <div class="urls-section hidden glass-card" id="formatSection">
+                    <div class="urls-header">
+                        <div class="urls-title">
+                            <h2>Generated Format</h2>
+                            <span id="formatCount" class="count-badge">0 Lines</span>
+                        </div>
+                        <div class="urls-actions">
+                            <button id="copyFormat" disabled class="action-btn copy-btn">📋 Copy Format</button>
+                        </div>
+                    </div>
+                    <textarea id="generatedFormat" placeholder="Generated format will appear here..." readonly></textarea>
+                </div>
+
+                <!-- Example Section -->
+                <div class="example-section glass-card">
+                    <h3>📖 How it Works</h3>
+                    <div class="example-content">
+                        <div class="example-input">
+                            <h4>Input Example:</h4>
+                            <div class="example-box">
+                                <strong>Domains:</strong><br>
+                                cellularone.tokyoloveshop.com<br>
+                                cellularone.displayoutlook.biz.id<br>
+                                cellulartwo.displayoutlook.biz.id<br>
+                                cellularone.advanceclass.biz.id<br>
+                                cellularone.beautyfresh.biz.id<br>
+                                cellularone.advancedream.biz.id<br><br>
+                                <strong>Settings:</strong> Domain Range = 2, Range Size = 3, Start From = 6
+                            </div>
+                        </div>
+                        <div class="example-arrow">→</div>
+                        <div class="example-output">
+                            <h4>Output Result:</h4>
+                            <div class="example-box">
+                                cellularone.tokyoloveshop.com|6-8<br>
+                                cellularone.displayoutlook.biz.id|6-8<br>
+                                cellulartwo.displayoutlook.biz.id|9-11<br>
+                                cellularone.advanceclass.biz.id|9-11<br>
+                                cellularone.beautyfresh.biz.id|12-14<br>
+                                cellularone.advancedream.biz.id|12-14
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/generator.js"></script>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+</body>
+</html>
