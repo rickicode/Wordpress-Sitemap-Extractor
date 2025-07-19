@@ -82,41 +82,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners Setup ---
     function setupEventListeners() {
-        globalAuthButton.addEventListener('click', authenticate);
-        globalAuthPassword.addEventListener('keypress', e => e.key === 'Enter' && authenticate());
+        // Authentication
+        if (globalAuthButton) globalAuthButton.addEventListener('click', authenticate);
+        if (globalAuthPassword) globalAuthPassword.addEventListener('keypress', e => e.key === 'Enter' && authenticate());
         
-        homeNav.addEventListener('click', () => showSection('home'));
-        manageNav.addEventListener('click', () => showSection('manager'));
-        logoutButton.addEventListener('click', logout);
+        // Navigation
+        if (homeNav) homeNav.addEventListener('click', () => showSection('home'));
+        if (manageNav) manageNav.addEventListener('click', () => showSection('manager'));
+        if (logoutButton) logoutButton.addEventListener('click', logout);
         
-        extractButton.addEventListener('click', startExtraction);
-        copyUrlsButton.addEventListener('click', copyUrls);
-        clearDataButton.addEventListener('click', clearSavedData);
+        // Main actions
+        if (extractButton) extractButton.addEventListener('click', startExtraction);
+        if (copyUrlsButton) copyUrlsButton.addEventListener('click', copyUrls);
+        if (clearDataButton) clearDataButton.addEventListener('click', clearSavedData);
         
-        refreshSitemapsButton.addEventListener('click', loadSavedSitemaps);
-        copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
-        openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
+        // Manager actions
+        if (refreshSitemapsButton) refreshSitemapsButton.addEventListener('click', loadSavedSitemaps);
+        if (copyAutoSavedUrlButton) copyAutoSavedUrlButton.addEventListener('click', copyAutoSavedUrl);
+        if (openAutoSavedUrlButton) openAutoSavedUrlButton.addEventListener('click', openAutoSavedUrl);
         
-        const inputsToSave = [siteUrlsTextarea, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox, checkCaptchaCheckbox];
+        // Auto-save inputs
+        const inputsToSave = [siteUrlsTextarea, urlLimitInput, checkValidityCheckbox, enableAutoSaveCheckbox, saveUrlToFileCheckbox, checkCaptchaCheckbox].filter(Boolean);
         inputsToSave.forEach(input => {
             const eventType = input.type === 'checkbox' ? 'change' : 'input';
             input.addEventListener(eventType, debounce(saveData, 500));
         });
 
-        saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
+        if (saveUrlToFileCheckbox) saveUrlToFileCheckbox.addEventListener('change', onSaveUrlToFileToggle);
 
         // Folder Tag Input Listeners
-        folderInput.addEventListener('input', onFolderInputChange);
-        folderInput.addEventListener('keydown', onFolderInputKeyDown);
-        folderInput.addEventListener('focus', () => onFolderInputChange());
-        clearFolders.addEventListener('click', () => {
+        if (folderInput) {
+            folderInput.addEventListener('input', onFolderInputChange);
+            folderInput.addEventListener('keydown', onFolderInputKeyDown);
+            folderInput.addEventListener('focus', () => onFolderInputChange());
+        }
+        if (clearFolders) clearFolders.addEventListener('click', () => {
             selectedFolders = [];
             renderTags();
             saveData();
         });
         document.addEventListener('click', (e) => {
-            if (!folderSelectContainer.contains(e.target)) {
-                folderSuggestions.style.display = 'none';
+            if (folderSelectContainer && !folderSelectContainer.contains(e.target)) {
+                if (folderSuggestions) folderSuggestions.style.display = 'none';
             }
         });
     }
