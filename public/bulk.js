@@ -156,14 +156,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const line of lines) {
             if (!line.includes('|')) {
-                errors.push(`Invalid format: ${line} (should be subdomain|range)`);
+                errors.push(`Invalid format: ${line} (should be domain|range or domain|adsensekode|range)`);
                 continue;
             }
 
-            const [subdomain, rangeStr] = line.split('|').map(s => s.trim());
+            const parts = line.split('|').map(s => s.trim());
+            let subdomain, expectedAdsenseCode = null, rangeStr;
+
+            if (parts.length === 2) {
+                // Format lama: domain|range
+                [subdomain, rangeStr] = parts;
+            } else if (parts.length === 3) {
+                // Format baru: domain|adsensekode|range
+                [subdomain, expectedAdsenseCode, rangeStr] = parts;
+            } else {
+                errors.push(`Invalid format: ${line} (should be domain|range or domain|adsensekode|range)`);
+                continue;
+            }
             
             if (!subdomain || !rangeStr) {
                 errors.push(`Invalid format: ${line}`);
+                continue;
+            }
+
+            // Validasi AdSense code jika ada
+            if (expectedAdsenseCode && (expectedAdsenseCode.length < 10 || expectedAdsenseCode.length > 32 || !/^\d+$/.test(expectedAdsenseCode))) {
+                errors.push(`Invalid AdSense code: ${expectedAdsenseCode} (should be 10-32 digits)`);
                 continue;
             }
 
@@ -183,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             parsed.push({
                 subdomain: subdomain.startsWith('http') ? subdomain : `https://${subdomain}`,
+                expectedAdsenseCode,
                 range: rangeStr,
                 start,
                 end,
@@ -204,10 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     start: input.start,
                     end: input.end,
                     numbers: input.numbers,
-                    subdomains: []
+                    subdomains: [],
+                    subdomainData: []
                 };
             }
             groups[rangeKey].subdomains.push(input.subdomain);
+            groups[rangeKey].subdomainData.push({
+                subdomain: input.subdomain,
+                expectedAdsenseCode: input.expectedAdsenseCode
+            });
         }
 
         return Object.values(groups);
@@ -243,11 +267,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus('Starting bulk processing...', 'info');
 
         try {
+            // Detect if any domain has expectedAdsenseCode for auto-check
+            const hasAdsenseValidation = rangeGroups.some(group => 
+                group.subdomainData && group.subdomainData.some(item => item.expectedAdsenseCode)
+            );
+            
             const payload = {
                 rangeGroups,
                 limit: parseInt(urlLimitInput.value) || 10,
                 checkValidity: checkValidityCheckbox.checked,
-                checkAdsense: checkAdsenseCheckbox.checked
+                checkAdsense: hasAdsenseValidation || checkAdsenseCheckbox.checked // Auto-check if has validation OR manual check
             };
             
             const response = await fetch('/api/bulk-extract', {
@@ -401,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `
         <div class="urls-header">
             <div class="urls-title">
-                <h2>Adsense Kode Results</h2>
+                <h2>Adsense Kode Validation Results</h2>
                 <span id="adsenseDomainCount" class="count-badge">${adsenseResults.length} Domains</span>
             </div>
         </div>
@@ -413,7 +442,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <thead>
                 <tr>
                     <th class="adsense-th">DOMAIN</th>
-                    <th class="adsense-th">ADSENSE CODE</th>
+                    <th class="adsense-th">EXPECTED CODE</th>
+                    <th class="adsense-th">FOUND CODE(S)</th>
+                    <th class="adsense-th">STATUS</th>
                 </tr>
             </thead>
             <tbody>
@@ -427,14 +458,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 domain = item.domain.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
             }
             
-            let codeText = (item.adsenseCodes && item.adsenseCodes.length > 0)
-                ? `<span class="adsense-badge">${item.adsenseCodes.join(', ').toLowerCase()}</span>`
-                : `<span class="adsense-badge error">tidak ditemukan</span>`;
+            // Expected code
+            const expectedCode = item.expectedCode || '-';
+            
+            // Found codes
+            let foundCodeText = '';
+            if (item.foundCodes && item.foundCodes.length > 0) {
+                foundCodeText = `<span class="adsense-badge">${item.foundCodes.join(', ')}</span>`;
+            } else if (item.adsenseCodes && item.adsenseCodes.length > 0) {
+                foundCodeText = `<span class="adsense-badge">${item.adsenseCodes.join(', ')}</span>`;
+            } else {
+                foundCodeText = `<span class="adsense-badge error">tidak ditemukan</span>`;
+            }
+            
+            // Status and row styling
+            let statusText = '';
+            let rowClass = 'adsense-row';
+            
+            if (item.expectedCode) {
+                // Ada expected code, lakukan validasi
+                if (item.isMatch === true) {
+                    statusText = `<span class="adsense-status match">✅ MATCH</span>`;
+                    rowClass += ' match-row';
+                } else {
+                    statusText = `<span class="adsense-status mismatch">❌ MISMATCH</span>`;
+                    rowClass += ' mismatch-row';
+                }
+            } else {
+                // Tidak ada expected code (format lama)
+                statusText = `<span class="adsense-status no-validation">⚪ NO VALIDATION</span>`;
+                rowClass += ' no-validation-row';
+            }
                 
             html += `
-                <tr class="adsense-row">
+                <tr class="${rowClass}">
                     <td class="adsense-td">${domain}</td>
-                    <td class="adsense-td">${codeText}</td>
+                    <td class="adsense-td">${expectedCode}</td>
+                    <td class="adsense-td">${foundCodeText}</td>
+                    <td class="adsense-td">${statusText}</td>
                 </tr>
             `;
         });

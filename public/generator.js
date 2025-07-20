@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Parse domains
+        // Parse domains and auto-detect format
         const domainList = domains.split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0);
@@ -174,25 +174,67 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Parse each domain line for format: domain or domain,adsensecode
+        const parsedDomains = [];
+        const errors = [];
+
+        for (const line of domainList) {
+            if (line.includes(',')) {
+                // Format: domain,adsensecode
+                const parts = line.split(',').map(s => s.trim());
+                if (parts.length !== 2) {
+                    errors.push(`Invalid format: ${line} (should be domain,adsensecode)`);
+                    continue;
+                }
+                const [domain, adsenseCode] = parts;
+                if (!domain || !adsenseCode) {
+                    errors.push(`Invalid format: ${line} (domain and adsense code required)`);
+                    continue;
+                }
+                if (!/^[0-9]{10,32}$/.test(adsenseCode)) {
+                    errors.push(`Invalid AdSense code: ${adsenseCode} (should be 10-32 digits)`);
+                    continue;
+                }
+                parsedDomains.push({ domain, adsenseCode });
+            } else {
+                // Format: domain only
+                parsedDomains.push({ domain: line, adsenseCode: null });
+            }
+        }
+
+        if (errors.length > 0) {
+            showStatus(`Input errors:\n${errors.join('\n')}`, 'error');
+            return;
+        }
+
         // Generate format
         const result = [];
         let currentNumber = startNumber;
         
-        for (let i = 0; i < domainList.length; i += domainRange) {
+        for (let i = 0; i < parsedDomains.length; i += domainRange) {
             const endNumber = currentNumber + numberRange - 1;
             const rangeText = `${currentNumber}-${endNumber}`;
             
             // Apply the same range to all domains in this group
-            for (let j = i; j < Math.min(i + domainRange, domainList.length); j++) {
-                result.push(`${domainList[j]}|${rangeText}`);
+            for (let j = i; j < Math.min(i + domainRange, parsedDomains.length); j++) {
+                const { domain, adsenseCode } = parsedDomains[j];
+                if (adsenseCode) {
+                    // Format: domain|adsensecode|range
+                    result.push(`${domain}|${adsenseCode}|${rangeText}`);
+                } else {
+                    // Format: domain|range
+                    result.push(`${domain}|${rangeText}`);
+                }
             }
             
             currentNumber = endNumber + 1;
         }
 
         // Display results
-        displayResults(result, domainList.length, domainRange, numberRange, startNumber);
-        showStatus(`Successfully generated format for ${domainList.length} domains.`, 'success');
+        displayResults(result, parsedDomains.length, domainRange, numberRange, startNumber);
+        const adsenseCount = parsedDomains.filter(d => d.adsenseCode).length;
+        const formatType = adsenseCount > 0 ? `mixed format (${adsenseCount} with AdSense)` : 'standard format';
+        showStatus(`Successfully generated ${formatType} for ${parsedDomains.length} domains.`, 'success');
     }
 
     function displayResults(result, totalDomains, domainRange, numberRange, startNumber) {

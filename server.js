@@ -774,14 +774,17 @@ app.post('/api/bulk-extract', requireAuth, async (req, res) => {
         
         // Process each range group
         for (const group of rangeGroups) {
-            const { range, subdomains, numbers } = group;
+            const { range, subdomains, numbers, subdomainData } = group;
             const combinedUrls = [];
             const groupAdsenseResults = [];
             
             result.totalSites += subdomains.length;
             
             // Extract URLs from each subdomain in the group
-            for (const siteUrl of subdomains) {
+            for (let i = 0; i < subdomains.length; i++) {
+                const siteUrl = subdomains[i];
+                const domainData = subdomainData && subdomainData[i] ? subdomainData[i] : { subdomain: siteUrl, expectedAdsenseCode: null };
+                
                 try {
                     const sanitizedUrl = sanitizeUrl(siteUrl);
                     if (!sanitizedUrl) {
@@ -790,8 +793,10 @@ app.post('/api/bulk-extract', requireAuth, async (req, res) => {
                     
                     result.processedSites++;
                     
-                    // Check Adsense code if requested
-                    if (checkAdsense) {
+                    // Auto-check AdSense if expectedAdsenseCode is provided or if checkAdsense is true
+                    const shouldCheckAdsense = domainData.expectedAdsenseCode || checkAdsense;
+                    
+                    if (shouldCheckAdsense) {
                         try {
                             const homepageResp = await http.get(sanitizedUrl, { timeout: 10000 });
                             const html = homepageResp.data;
@@ -801,15 +806,28 @@ app.post('/api/bulk-extract', requireAuth, async (req, res) => {
                             while ((match = regex.exec(html)) !== null) {
                                 if (match[1]) ids.push(match[1]);
                             }
-                            const adsenseCodes = ids.length > 0 ? [...new Set(ids)] : [];
+                            const foundCodes = ids.length > 0 ? [...new Set(ids)] : [];
+                            
+                            // Check if there's a match with expected code
+                            let isMatch = null;
+                            if (domainData.expectedAdsenseCode) {
+                                isMatch = foundCodes.includes(domainData.expectedAdsenseCode);
+                            }
+                            
                             groupAdsenseResults.push({
                                 domain: sanitizedUrl,
-                                adsenseCodes: adsenseCodes
+                                expectedCode: domainData.expectedAdsenseCode,
+                                foundCodes: foundCodes,
+                                adsenseCodes: foundCodes, // for backward compatibility
+                                isMatch: isMatch
                             });
                         } catch (adsenseErr) {
                             groupAdsenseResults.push({
                                 domain: sanitizedUrl,
-                                adsenseCodes: []
+                                expectedCode: domainData.expectedAdsenseCode,
+                                foundCodes: [],
+                                adsenseCodes: [], // for backward compatibility
+                                isMatch: domainData.expectedAdsenseCode ? false : null
                             });
                         }
                     }
@@ -870,10 +888,16 @@ app.post('/api/bulk-extract', requireAuth, async (req, res) => {
                         invalidUrls: 0,
                         error: error.message
                     };
-                    if (checkAdsense) {
+                    
+                    // Auto-check AdSense if expectedAdsenseCode is provided or if checkAdsense is true
+                    const shouldCheckAdsense = domainData.expectedAdsenseCode || checkAdsense;
+                    if (shouldCheckAdsense) {
                         groupAdsenseResults.push({
                             domain: siteUrl,
-                            adsenseCodes: []
+                            expectedCode: domainData.expectedAdsenseCode,
+                            foundCodes: [],
+                            adsenseCodes: [], // for backward compatibility
+                            isMatch: domainData.expectedAdsenseCode ? false : null
                         });
                     }
                 }

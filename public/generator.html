@@ -48,13 +48,18 @@
             <div class="content-section active" id="generatorSection">
                 <!-- Input Section -->
                 <div class="input-section glass-card">
-                    <label for="domainInput">Enter Domain List:</label>
-                    <textarea id="domainInput" placeholder="cellularone.tokyoloveshop.com&#10;cellularone.displayoutlook.biz.id&#10;cellulartwo.displayoutlook.biz.id&#10;cellularone.advanceclass.biz.id&#10;cellularone.beautyfresh.biz.id&#10;cellularone.advancedream.biz.id" rows="8"></textarea>
+                    <label for="domainInput">Enter Domain List (domain or domain,adsensecode):</label>
+                    <textarea id="domainInput" placeholder="example.com&#10;sitedua.net,8804322353015317&#10;sitetiga.org&#10;siteempat.biz,1234567890123456" rows="8"></textarea>
                     <div class="auto-save-info" id="autoSaveIndicator"></div>
                     
                     <div class="info-box">
                         <p><strong>Format Generator:</strong> Generate formatted output with domain ranges and number sequences.</p>
-                        <p><strong>Example:</strong> If Domain Range = 2, Range = 3, Start = 6, then first 2 domains get |6-8, next 2 get |9-11, etc.</p>
+                        <p><strong>Input Format Options:</strong></p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li><strong>Standard:</strong> domain (e.g., example.com) → Output: domain|6-8</li>
+                            <li><strong>With AdSense:</strong> domain,adsensecode (e.g., example.com,8804322353015317) → Output: domain|adsensecode|6-8</li>
+                        </ul>
+                        <p><strong>Auto-Detection:</strong> Generator automatically detects format based on comma presence and outputs appropriate format.</p>
                     </div>
                     
                     <!-- Generator Controls -->
@@ -73,6 +78,7 @@
                                 <input type="number" id="startNumber" min="1" max="9999" value="6" class="compact-input" placeholder="Starting number">
                             </div>
                         </div>
+                        
                     </div>
                     
                     <div class="action-row">
@@ -142,25 +148,23 @@
                             <h4>Input Example:</h4>
                             <div class="example-box">
                                 <strong>Domains:</strong><br>
-                                cellularone.tokyoloveshop.com<br>
-                                cellularone.displayoutlook.biz.id<br>
-                                cellulartwo.displayoutlook.biz.id<br>
-                                cellularone.advanceclass.biz.id<br>
-                                cellularone.beautyfresh.biz.id<br>
-                                cellularone.advancedream.biz.id<br><br>
-                                <strong>Settings:</strong> Domain Range = 2, Range Size = 3, Start From = 6
+                                example.com<br>
+                                sitedua.net,8804322353015317<br>
+                                sitetiga.org<br>
+                                siteempat.biz,1234567890123456<br><br>
+                                <strong>Settings:</strong><br>
+                                Domain Range = 2, Range Size = 3, Start From = 6
                             </div>
                         </div>
                         <div class="example-arrow">→</div>
                         <div class="example-output">
                             <h4>Output Result:</h4>
                             <div class="example-box">
-                                cellularone.tokyoloveshop.com|6-8<br>
-                                cellularone.displayoutlook.biz.id|6-8<br>
-                                cellulartwo.displayoutlook.biz.id|9-11<br>
-                                cellularone.advanceclass.biz.id|9-11<br>
-                                cellularone.beautyfresh.biz.id|12-14<br>
-                                cellularone.advancedream.biz.id|12-14
+                                <strong>Mixed Format (Auto-detected):</strong><br>
+                                example.com|6-8<br>
+                                sitedua.net|8804322353015317|6-8<br>
+                                sitetiga.org|9-11<br>
+                                siteempat.biz|1234567890123456|9-11
                             </div>
                         </div>
                     </div>

@@ -551,6 +551,44 @@ textarea#extractedUrls:focus {
     color: #fff;
 }
 
+/* AdSense Validation Status Styles */
+.adsense-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #fff;
+}
+
+.adsense-status.match {
+    background: var(--success-color);
+}
+
+.adsense-status.mismatch {
+    background: var(--error-color);
+}
+
+.adsense-status.no-validation {
+    background: var(--text-secondary);
+}
+
+/* Row color coding for AdSense validation */
+.adsense-row.match-row {
+    background: rgba(46, 204, 113, 0.1) !important;
+    border-left: 3px solid var(--success-color);
+}
+
+.adsense-row.mismatch-row {
+    background: rgba(231, 76, 60, 0.1) !important;
+    border-left: 3px solid var(--error-color);
+}
+
+.adsense-row.no-validation-row {
+    background: rgba(154, 154, 154, 0.05) !important;
+    border-left: 3px solid var(--text-secondary);
+}
+
 /* --- Captcha Table Styles --- */
 .captcha-table-container {
     margin-top: 10px;

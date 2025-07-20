@@ -47,13 +47,18 @@
             <!-- Bulk Section -->
             <div class="content-section active" id="bulkSection">
                 <div class="input-section glass-card">
-                    <label for="bulkInput">Enter Bulk Input (subdomain|range format):</label>
-                    <textarea id="bulkInput" placeholder="cart-shopone.aideronrobotics.com|6-8&#10;cart-shoptwo.aideronrobotics.com|6-8&#10;cart-shopone.agungbisnis.biz.id|9-11" rows="8"></textarea>
+                    <label for="bulkInput">Enter Bulk Input (domain|range or domain|adsensecode|range format):</label>
+                    <textarea id="bulkInput" placeholder="example.com|6-8&#10;sitedua.com|8804322353015317|10-13&#10;sitetiga.net|5555555555555555|20-25" rows="8"></textarea>
                     <div class="auto-save-info" id="autoSaveIndicator"></div>
                     
                     <div class="info-box">
                         <p><strong>Bulk Processing:</strong> Process multiple subdomains with range-based sitemap generation.</p>
-                        <p><strong>Format:</strong> subdomain|start-end (e.g., example.com|6-8 creates sitemap/6.xml, sitemap/7.xml, sitemap/8.xml)</p>
+                        <p><strong>Format Options:</strong></p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li><strong>Standard:</strong> domain|start-end (e.g., example.com|6-8)</li>
+                            <li><strong>With AdSense validation:</strong> domain|adsensecode|start-end (e.g., example.com|8804322353015317|6-8)</li>
+                        </ul>
+                        <p><strong>AdSense Validation:</strong> When you include an AdSense code, the system automatically validates it against the homepage. Mismatched codes will be highlighted in red.</p>
                     </div>
                     
                     <div class="extraction-controls">
